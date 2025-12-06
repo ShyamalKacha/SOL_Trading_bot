@@ -398,14 +398,16 @@
 
                 // Update current price
                 if (data.current_price) {
-                    // Display with more precision for tokens with very low values
+                    // Display with full precision for tokens with very low values
                     const priceValue = data.current_price;
                     let displayPrice;
                     if (priceValue >= 0.01) {
-                        displayPrice = priceValue.toFixed(2);  // Standard 2 decimal places for normal prices
+                        displayPrice = priceValue.toFixed(8);  // 8 decimal places for precision
                     } else {
-                        displayPrice = priceValue.toFixed(8);  // More decimal places for low-value tokens
+                        displayPrice = priceValue.toFixed(8);  // 8 decimal places for low-value tokens
                     }
+                    // Remove trailing zeros but keep precision
+                    displayPrice = parseFloat(displayPrice).toString();
                     currentPrice.textContent = '$' + displayPrice;
                     lastUpdated.textContent = new Date().toLocaleTimeString();
                 }
@@ -468,11 +470,13 @@
             transactions.slice().reverse().forEach(tx => {
                 // Use token symbol if available, otherwise use first 6 chars of token mint
                 const displayToken = tx.token_symbol || tx.token.substring(0, 6) + '...';
+                // Display price with full precision
+                const displayPrice = parseFloat(tx.price.toFixed(8)).toString();
                 html += `<tr>
                     <td>${tx.timestamp}</td>
                     <td><span class="badge bg-${tx.action === 'buy' ? 'success' : 'danger'}">${tx.action}</span></td>
                     <td>${displayToken}</td>
-                    <td>$${tx.price.toFixed(8)}</td>  <!-- More precision for small prices -->
+                    <td>$${displayPrice}</td>  <!-- Full precision for small prices -->
                     <td>${tx.amount}</td>
                 </tr>`;
             });
