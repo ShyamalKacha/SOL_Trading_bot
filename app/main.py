@@ -46,8 +46,9 @@ MOCK_TOKENS = [
 # Token information mapping
 TOKEN_INFO = {
     SOL_MINT: {"symbol": "SOL", "name": "Solana"},
-    # For trading purposes, wSOL and SOL are treated similarly but presented differently to user
-    WSOL_MINT: {"symbol": "wSOL", "name": "Wrapped Solana"},
+    # SOL and wSOL have the same mint address but may be treated differently in UI
+    # For display purposes, we'll treat them the same since they have the same underlying value
+    "So11111111111111111111111111111111111111112": {"symbol": "SOL", "name": "Solana"},  # Standard SOL address
     USDC_MINT: {"symbol": "USDC", "name": "USD Coin"},
 }
 
