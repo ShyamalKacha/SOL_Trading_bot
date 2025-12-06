@@ -287,7 +287,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                 output_mint = selected_token
                 input_mint = "So11111111111111111111111111111111111111112"  # SOL (to get USDC price in SOL)
             # For SOL/wSOL, get price in USDC
-            elif selected_token == "So11111111111111111111111111111111111111112":  # SOL or wSOL
+            elif selected_token == "So11111111111111111111111111111111111111112":  # SOL or wSOL (same mint address)
                 input_mint = "So11111111111111111111111111111111111111112"  # SOL
                 output_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
             # For any other token, try to get price in USDC first
@@ -430,6 +430,9 @@ def get_jupiter_price_direct(input_mint, output_mint, amount):
                 # Only return success if we have meaningful data
                 if out_amount > 0 and in_amount > 0:
                     price = out_amount / in_amount
+                    # For debugging: print what tokens and the calculated price
+                    print(f"Price calculation: {input_mint} -> {output_mint}, "
+                          f"out: {out_amount}, in: {in_amount}, price: {price}")
                     return {"price": price, "success": True}
                 else:
                     print(f"Invalid amounts received - out: {out_amount}, in: {in_amount}")
