@@ -24,8 +24,8 @@ from datetime import datetime
 app = Flask(__name__)
 
 # Constants
-# Using the Jupiter Quote API v6 endpoint for price quotes (doesn't require API key)
-JUPITER_QUOTE_API = "https://quote-api.jup.ag/v6/quote"
+# Using the Jupiter Lite API endpoint for quotes (doesn't require API key)
+JUPITER_QUOTE_API = "https://lite-api.jup.ag/swap/v1/quote"
 
 # Mock data for demonstration
 # SOL mint address
@@ -386,17 +386,18 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
         time.sleep(5)
 
 def get_jupiter_price_direct(input_mint, output_mint, amount):
-    """Direct call to Jupiter API without using Flask request context"""
+    """Direct call to Jupiter Lite API without using Flask request context"""
     import requests
     import urllib3
 
     # Disable SSL warnings if needed (for debugging purposes only)
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    # Set appropriate headers for Jupiter API
+    # Set appropriate headers for Jupiter Lite API
     headers = {
         "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "Accept": "application/json"
     }
 
     # First try the original pair
