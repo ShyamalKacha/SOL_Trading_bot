@@ -286,9 +286,9 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
             if selected_token == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v":  # USDC
                 output_mint = selected_token
                 input_mint = "So11111111111111111111111111111111111111112"  # SOL (to get USDC price in SOL)
-            # For SOL/wSOL, get price in USDC
-            elif selected_token == "So11111111111111111111111111111111111111112":  # SOL or wSOL (same mint address)
-                input_mint = "So11111111111111111111111111111111111111112"  # SOL
+            # For SOL/wSOL (both use the same mint address), get price in USDC
+            elif selected_token == "So11111111111111111111111111111111111111112":  # SOL/wSOL same mint
+                input_mint = "So11111111111111111111111111111111111111112"  # SOL/wSOL
                 output_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
             # For any other token, try to get price in USDC first
             else:
