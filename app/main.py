@@ -426,13 +426,44 @@ def get_jupiter_price_direct(input_mint, output_mint, amount):
             if 'outAmount' in quote_data and 'inAmount' in quote_data:
                 out_amount = int(quote_data['outAmount'])
                 in_amount = int(quote_data['inAmount'])
+                # Calculate price accounting for decimals
+                # For SOL/USDC pricing, we need to account for decimal differences
+                # SOL has 9 decimals, USDC has 6 decimals (3 decimal difference)
+                # If we're asking for SOL -> USDC, we might need to adjust for decimals
+
                 # Price is output amount per input amount
                 # Only return success if we have meaningful data
                 if out_amount > 0 and in_amount > 0:
-                    price = out_amount / in_amount
+                    # Raw calculation before decimal adjustment
+                    raw_price = out_amount / in_amount
+
+                    # Apply proper decimal adjustment
+                    # When dealing with SOL (9 decimals) and USDC (6 decimals),
+                    # Jupiter returns raw amounts but for pricing we often need to adjust
+                    # The difference in decimals is 9-6 = 3 decimals = factor of 1000
+
+                    if (input_mint == "So11111111111111111111111111111111111111112" and  # SOL
+                        output_mint == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"):   # USDC
+                        # SOL -> USDC: Adjust for decimal difference (SOL: 9, USDC: 6, diff: 3)
+                        # If Jupiter quotes 1 SOL (in lamports) -> X USDC (in raw units)
+                        # The proper price in USD is X / 1000, but we need to consider what the raw ratio represents
+                        # Actually, if Jupiter says for 1,000,000,000 lamports I get 133,000,000 USDC units
+                        # That means 1 SOL gets me 133 USDC, so price should be 133
+                        # The raw calculation gives 133,000,000 / 1,000,000,000 = 0.133
+                        # So I need to multiply by 1000 to correct for the decimal difference
+                        price = raw_price * (10 ** (9 - 6))  # 10^3 = 1000 factor
+                    elif (input_mint == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" and  # USDC
+                          output_mint == "So11111111111111111111111111111111111111112"):  # SOL
+                        # USDC -> SOL: Adjust for decimal difference
+                        # If Jupiter says 1 USDC gets X SOL, the price needs adjustment
+                        price = raw_price / (10 ** (9 - 6))  # Invert the factor
+                    else:
+                        # For other tokens, use original calculation (may need adjustment later)
+                        price = raw_price
+
                     # For debugging: print what tokens and the calculated price
-                    print(f"Price calculation: {input_mint} -> {output_mint}, "
-                          f"out: {out_amount}, in: {in_amount}, price: {price}")
+                    print(f"Decimal-adjusted calculation: {input_mint} -> {output_mint}, "
+                          f"raw_price: {raw_price}, adjusted_price: {price}")
                     return {"price": price, "success": True}
                 else:
                     print(f"Invalid amounts received - out: {out_amount}, in: {in_amount}")
