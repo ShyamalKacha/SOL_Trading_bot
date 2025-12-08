@@ -234,7 +234,7 @@
                     wallet = window.phantom.solana;
 
                     // Check if already connected
-                    if (wallet.isConnected) {
+                    if (wallet.connecting || (wallet.isConnected && connectedWalletPublicKey)) {
                         await disconnectWallet();
                         return;
                     }
@@ -265,19 +265,28 @@
         // Disconnect from Phantom wallet
         async function disconnectWallet() {
             try {
-                if (wallet) {
+                if (wallet && wallet.isConnected) {
                     await wallet.disconnect();
-
-                    // Update UI
-                    walletStatus.className = 'badge bg-secondary';
-                    walletStatus.textContent = 'Not Connected';
-                    walletAddress.textContent = '';
-                    tokenBalances.innerHTML = '<div class="alert alert-info">Connect wallet to view balances</div>';
-
-                    console.log('Wallet disconnected');
                 }
+
+                // Reset wallet state
+                connectedWalletPublicKey = null;
+
+                // Update UI
+                walletStatus.className = 'badge bg-secondary';
+                walletStatus.textContent = 'Not Connected';
+                walletAddress.textContent = '';
+                tokenBalances.innerHTML = '<div class="alert alert-info">Connect wallet to view balances</div>';
+
+                console.log('Wallet disconnected');
             } catch (error) {
                 console.error('Error disconnecting wallet:', error);
+                // Still reset state even if disconnect fails
+                connectedWalletPublicKey = null;
+                walletStatus.className = 'badge bg-secondary';
+                walletStatus.textContent = 'Not Connected';
+                walletAddress.textContent = '';
+                tokenBalances.innerHTML = '<div class="alert alert-info">Connect wallet to view balances</div>';
             }
         }
 
