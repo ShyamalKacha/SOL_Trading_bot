@@ -57,6 +57,10 @@ trading_state = {
     "is_running": False,
     "last_action": None,  # 'buy' or 'sell'
     "current_price": 0,
+    "dynamic_base_price": None,
+    "total_profit": 0,  # Track total profit
+    "position": 0,  # Track number of tokens held
+    "avg_purchase_price": 0,  # Track average purchase price
     "transaction_history": [],
 }
 
@@ -279,6 +283,9 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
     global trading_state
     trading_state['is_running'] = True
     trading_state['last_action'] = None
+    trading_state['total_profit'] = 0  # Track total profit
+    trading_state['position'] = 0  # Track number of tokens held
+    trading_state['avg_purchase_price'] = 0  # Track average purchase price
 
     # Start with the initial base price, but update to current price on start
     dynamic_base_price = base_price
@@ -391,6 +398,14 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                 # Update base price to the price at which we bought
                 dynamic_base_price = current_price
                 trading_state['dynamic_base_price'] = dynamic_base_price
+
+                # Update position and average purchase price
+                # Calculate weighted average purchase price
+                old_position_value = trading_state['position'] * trading_state['avg_purchase_price']
+                new_purchase_value = trade_amount * current_price
+                trading_state['position'] += trade_amount
+                trading_state['avg_purchase_price'] = (old_position_value + new_purchase_value) / trading_state['position'] if trading_state['position'] > 0 else 0
+
                 action_taken = True
                 print(f"[TRADING ALGO] Buying at {current_price}, updated base: {dynamic_base_price}, sell_high: {sell_high_threshold}, sell_low: {sell_low_threshold}")
             elif should_sell:
@@ -399,14 +414,45 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                 # Update base price to the price at which we sold
                 dynamic_base_price = current_price
                 trading_state['dynamic_base_price'] = dynamic_base_price
+
+                # Calculate profit from this sale
+                if trading_state['position'] > 0:
+                    # Calculate profit per token
+                    profit_per_token = current_price - trading_state['avg_purchase_price']
+                    total_profit_from_sale = profit_per_token * min(trade_amount, trading_state['position'])
+
+                    # Update total profit
+                    trading_state['total_profit'] += total_profit_from_sale
+
+                    # Reduce position
+                    trading_state['position'] -= min(trade_amount, trading_state['position'])
+
+                    # If we've sold all tokens, reset average purchase price
+                    if trading_state['position'] <= 0:
+                        trading_state['position'] = 0
+                        trading_state['avg_purchase_price'] = 0
+                    else:
+                        # If we still hold some tokens, the average purchase price doesn't change
+                        # because we're just reducing the quantity
+                        pass
+
                 action_taken = True
-                print(f"[TRADING ALGO] Selling at {current_price}, updated base: {dynamic_base_price}, sell_high: {sell_high_threshold}, sell_low: {sell_low_threshold}")
+                print(f"[TRADING ALGO] Selling at {current_price}, updated base: {dynamic_base_price}, sell_high: {sell_high_threshold}, sell_low: {sell_low_threshold}, current_total_profit: {trading_state['total_profit']}")
 
             # Log action if taken
             if action_taken:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 action = trading_state['last_action']
                 price = current_price
+
+                # Calculate profit/loss for this transaction
+                transaction_pnl = None
+                if action == 'sell' and trading_state.get('avg_purchase_price', 0) > 0:
+                    # Calculate P&L per token sold
+                    pnl_per_token = price - trading_state['avg_purchase_price']
+                    # Total P&L for the sold amount
+                    transaction_pnl = pnl_per_token * min(trade_amount, trading_state['position'])
+
                 trading_state['transaction_history'].append({
                     'timestamp': timestamp,
                     'action': action,
@@ -414,7 +460,8 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                     'token_symbol': get_token_symbol(selected_token),  # Include the token symbol for display
                     'price': price,
                     'amount': trade_amount,
-                    'base_price_at_execution': dynamic_base_price  # Record the dynamic base price at time of execution
+                    'base_price_at_execution': dynamic_base_price,  # Record the dynamic base price at time of execution
+                    'pnl': transaction_pnl  # Record profit/loss for this transaction
                 })
 
                 # Keep only last 20 transactions

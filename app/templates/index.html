@@ -114,7 +114,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="downPercentage" class="form-label">Sell Low Percentage (%)</label>
+                            <label for="downPercentage" class="form-label">Buy Low Percentage (%)</label>
                             <input type="number" class="form-control" id="downPercentage" placeholder="Enter down percentage" value="3" min="0" step="0.1">
                         </div>
 
@@ -158,6 +158,12 @@
                         </div>
 
                         <div class="mb-3">
+                            <label class="form-label">Total Profit ($)</label>
+                            <div class="alert alert-success" id="totalProfit">$0.00</div>
+                            <div class="form-text">Cumulative profit/loss from all trades</div>
+                        </div>
+
+                        <div class="mb-3">
                             <label class="form-label">Last Action</label>
                             <div class="alert alert-light" id="lastAction">None</div>
                         </div>
@@ -188,12 +194,13 @@
                                         <th>Token</th>
                                         <th>Price ($)</th>
                                         <th>Base Price ($)</th>
+                                        <th>P&L ($)</th>
                                         <th>Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody id="transactionHistory">
                                     <tr>
-                                        <td colspan="6" class="text-center">No transactions yet</td>
+                                        <td colspan="7" class="text-center">No transactions yet</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -221,6 +228,7 @@
         const statusText = document.getElementById('statusText');
         const currentPrice = document.getElementById('currentPrice');
         const dynamicBasePrice = document.getElementById('dynamicBasePrice');
+        const totalProfit = document.getElementById('totalProfit');
         const lastAction = document.getElementById('lastAction');
         const lastUpdated = document.getElementById('lastUpdated');
         const transactionHistory = document.getElementById('transactionHistory');
@@ -443,6 +451,30 @@
                     dynamicBasePrice.textContent = '$' + displayDynamicPrice;
                 }
 
+                // Update total profit
+                if (data.total_profit !== undefined) {
+                    const profitValue = data.total_profit;
+                    let displayProfit;
+                    if (Math.abs(profitValue) >= 0.01) {
+                        displayProfit = profitValue.toFixed(8);  // 8 decimal places for precision
+                    } else {
+                        displayProfit = profitValue.toFixed(8);  // 8 decimal places for low-value profits
+                    }
+                    // Remove trailing zeros but keep precision
+                    displayProfit = parseFloat(displayProfit).toString();
+                    // Add color coding based on profit/loss
+                    if (profitValue > 0) {
+                        totalProfit.textContent = '+$' + displayProfit;
+                        totalProfit.className = 'alert alert-success';  // Green for profit
+                    } else if (profitValue < 0) {
+                        totalProfit.textContent = '-$' + Math.abs(parseFloat(displayProfit)).toString();
+                        totalProfit.className = 'alert alert-danger';  // Red for loss
+                    } else {
+                        totalProfit.textContent = '$' + displayProfit;
+                        totalProfit.className = 'alert alert-secondary';  // Gray for neutral
+                    }
+                }
+
                 // Update last action
                 if (data.last_action) {
                     lastAction.textContent = data.last_action.charAt(0).toUpperCase() + data.last_action.slice(1);
@@ -493,7 +525,7 @@
         // Function to update transaction history table
         function updateTransactionHistory(transactions) {
             if (transactions.length === 0) {
-                transactionHistory.innerHTML = '<tr><td colspan="6" class="text-center">No transactions yet</td></tr>';
+                transactionHistory.innerHTML = '<tr><td colspan="7" class="text-center">No transactions yet</td></tr>';
                 return;
             }
 
@@ -504,12 +536,30 @@
                 // Display price with full precision
                 const displayPrice = parseFloat(tx.price.toFixed(8)).toString();
                 const displayBasePrice = tx.base_price_at_execution ? parseFloat(tx.base_price_at_execution.toFixed(8)).toString() : 'N/A';
+                // Calculate P&L if base price is available
+                let displayPL = 'N/A';
+                let plClass = '';
+                if (tx.base_price_at_execution && tx.action === 'sell') {
+                    const profitLoss = tx.price - tx.base_price_at_execution;
+                    const formattedPL = parseFloat(profitLoss.toFixed(8)).toString();
+                    if (profitLoss >= 0) {
+                        displayPL = '+' + formattedPL;
+                        plClass = 'text-success';  // Positive P&L in green
+                    } else {
+                        displayPL = formattedPL;
+                        plClass = 'text-danger';  // Negative P&L in red
+                    }
+                } else if (tx.action === 'buy') {
+                    displayPL = 'N/A';  // No P&L for buy transactions
+                }
+
                 html += `<tr>
                     <td>${tx.timestamp}</td>
                     <td><span class="badge bg-${tx.action === 'buy' ? 'success' : 'danger'}">${tx.action}</span></td>
                     <td>${displayToken}</td>
                     <td>$${displayPrice}</td>  <!-- Current price at execution -->
                     <td>$${displayBasePrice}</td>  <!-- Base price at execution -->
+                    <td class="${plClass}">$${displayPL}</td>  <!-- Profit/Loss -->
                     <td>${tx.amount}</td>
                 </tr>`;
             });
