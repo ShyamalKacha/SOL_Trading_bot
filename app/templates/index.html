@@ -152,6 +152,12 @@
                         </div>
 
                         <div class="mb-3">
+                            <label class="form-label">Dynamic Base Price ($)</label>
+                            <div class="alert alert-warning" id="dynamicBasePrice">$0.00</div>
+                            <div class="form-text">Updated after each buy/sell operation</div>
+                        </div>
+
+                        <div class="mb-3">
                             <label class="form-label">Last Action</label>
                             <div class="alert alert-light" id="lastAction">None</div>
                         </div>
@@ -181,12 +187,13 @@
                                         <th>Action</th>
                                         <th>Token</th>
                                         <th>Price ($)</th>
+                                        <th>Base Price ($)</th>
                                         <th>Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody id="transactionHistory">
                                     <tr>
-                                        <td colspan="5" class="text-center">No transactions yet</td>
+                                        <td colspan="6" class="text-center">No transactions yet</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -213,6 +220,7 @@
         const statusIndicator = document.getElementById('statusIndicator');
         const statusText = document.getElementById('statusText');
         const currentPrice = document.getElementById('currentPrice');
+        const dynamicBasePrice = document.getElementById('dynamicBasePrice');
         const lastAction = document.getElementById('lastAction');
         const lastUpdated = document.getElementById('lastUpdated');
         const transactionHistory = document.getElementById('transactionHistory');
@@ -421,6 +429,20 @@
                     lastUpdated.textContent = new Date().toLocaleTimeString();
                 }
 
+                // Update dynamic base price
+                if (data.dynamic_base_price !== undefined) {
+                    const dynamicBasePriceValue = data.dynamic_base_price;
+                    let displayDynamicPrice;
+                    if (dynamicBasePriceValue >= 0.01) {
+                        displayDynamicPrice = dynamicBasePriceValue.toFixed(8);  // 8 decimal places for precision
+                    } else {
+                        displayDynamicPrice = dynamicBasePriceValue.toFixed(8);  // 8 decimal places for low-value tokens
+                    }
+                    // Remove trailing zeros but keep precision
+                    displayDynamicPrice = parseFloat(displayDynamicPrice).toString();
+                    dynamicBasePrice.textContent = '$' + displayDynamicPrice;
+                }
+
                 // Update last action
                 if (data.last_action) {
                     lastAction.textContent = data.last_action.charAt(0).toUpperCase() + data.last_action.slice(1);
@@ -471,7 +493,7 @@
         // Function to update transaction history table
         function updateTransactionHistory(transactions) {
             if (transactions.length === 0) {
-                transactionHistory.innerHTML = '<tr><td colspan="5" class="text-center">No transactions yet</td></tr>';
+                transactionHistory.innerHTML = '<tr><td colspan="6" class="text-center">No transactions yet</td></tr>';
                 return;
             }
 
@@ -481,11 +503,13 @@
                 const displayToken = tx.token_symbol || tx.token.substring(0, 6) + '...';
                 // Display price with full precision
                 const displayPrice = parseFloat(tx.price.toFixed(8)).toString();
+                const displayBasePrice = tx.base_price_at_execution ? parseFloat(tx.base_price_at_execution.toFixed(8)).toString() : 'N/A';
                 html += `<tr>
                     <td>${tx.timestamp}</td>
                     <td><span class="badge bg-${tx.action === 'buy' ? 'success' : 'danger'}">${tx.action}</span></td>
                     <td>${displayToken}</td>
-                    <td>$${displayPrice}</td>  <!-- Full precision for small prices -->
+                    <td>$${displayPrice}</td>  <!-- Current price at execution -->
+                    <td>$${displayBasePrice}</td>  <!-- Base price at execution -->
                     <td>${tx.amount}</td>
                 </tr>`;
             });

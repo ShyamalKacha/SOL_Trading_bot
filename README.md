@@ -132,7 +132,3 @@ If you encounter issues:
 3. Check the browser console for any JavaScript errors
 4. Review the terminal output for any Python errors
 5. Make sure all dependencies were installed correctly
-
-## License
-
-This project is for educational purposes only. Use at your own risk.

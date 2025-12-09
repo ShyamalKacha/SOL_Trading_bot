@@ -267,13 +267,52 @@ def stop_trading():
 @app.route('/api/trading-status')
 def get_trading_status():
     """Get current trading status"""
-    return jsonify(trading_state)
+    # Ensure dynamic base price is present in response
+    status = trading_state.copy()
+    # If dynamic_base_price is not set, default to the original base price concept
+    if 'dynamic_base_price' not in status or status['dynamic_base_price'] is None:
+        status['dynamic_base_price'] = status.get('original_base_price', 0)
+    return jsonify(status)
 
 def trading_algorithm(base_price, up_percentage, down_percentage, selected_token, trade_amount):
-    """Main trading algorithm"""
+    """Main trading algorithm with dynamic base price adjustment"""
     global trading_state
     trading_state['is_running'] = True
     trading_state['last_action'] = None
+
+    # Start with the initial base price, but update to current price on start
+    dynamic_base_price = base_price
+
+    # Fetch initial price when starting and update base_price to current market price
+    try:
+        # Determine the output mint based on the selected token for initial price
+        if selected_token == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v":  # USDC
+            output_mint = selected_token
+            input_mint = "So11111111111111111111111111111111111111112"  # SOL
+        elif selected_token == "So11111111111111111111111111111111111111112":  # SOL or wSOL
+            input_mint = "So11111111111111111111111111111111111111112"  # SOL
+            output_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
+        else:
+            input_mint = selected_token
+            output_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
+
+        initial_price_response = get_jupiter_price_direct(input_mint, output_mint, 1000000000)
+        if initial_price_response["success"]:
+            initial_current_price = initial_price_response["price"]
+            # Update the base price to current market price when starting
+            dynamic_base_price = initial_current_price
+            trading_state['current_price'] = initial_current_price
+            trading_state['dynamic_base_price'] = dynamic_base_price
+            print(f"Updated base price to initial current price: {dynamic_base_price}")
+        else:
+            # If initial price fetch fails, use the provided base price
+            trading_state['current_price'] = dynamic_base_price
+            trading_state['dynamic_base_price'] = dynamic_base_price
+            print(f"Using provided base price: {dynamic_base_price}")
+    except Exception as e:
+        print(f"Error getting initial price: {e}")
+        trading_state['current_price'] = dynamic_base_price
+        trading_state['dynamic_base_price'] = dynamic_base_price
 
     # Keep track of the price at which the last action was taken
     last_action_price = None
@@ -282,11 +321,9 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
         try:
             # Get current price from Jupiter API
             # Determine the output mint based on the selected token
-            # For USDC, we'll get its value in SOL
             if selected_token == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v":  # USDC
                 output_mint = selected_token
                 input_mint = "So11111111111111111111111111111111111111112"  # SOL (to get USDC price in SOL)
-            # For SOL/wSOL (both use the same mint address), get price in USDC
             elif selected_token == "So11111111111111111111111111111111111111112":  # SOL/wSOL same mint
                 input_mint = "So11111111111111111111111111111111111111112"  # SOL/wSOL
                 output_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
@@ -294,9 +331,6 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
             else:
                 input_mint = selected_token
                 output_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
-
-                # If USDC quote doesn't work, we could try other stablecoins as fallback
-                # But for now, we'll stick with USDC as primary quote currency
 
             # Get price from Jupiter API directly without using request context
             # Call the price API using direct Jupiter API call instead of internal Flask call
@@ -307,7 +341,9 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
             if price_response["success"]:
                 current_price = price_response["price"]
                 trading_state['current_price'] = current_price
-                print(f"Got price: {current_price} for token {selected_token}")
+                # Update the dynamic base price in the trading state
+                trading_state['dynamic_base_price'] = dynamic_base_price
+                print(f"Got price: {current_price} for token {selected_token}, dynamic base: {dynamic_base_price}")
             else:
                 print(f"Failed to get price for main pair: {price_response.get('message', 'Unknown error')}")
 
@@ -332,9 +368,9 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                 time.sleep(5)  # Wait before next iteration
                 continue  # Skip trading logic if price is invalid
 
-            # Determine action based on current price and rules
-            sell_high_threshold = base_price * (1 + up_percentage / 100)
-            sell_low_threshold = base_price * (1 - down_percentage / 100)
+            # Determine action based on current price and the dynamic base price
+            sell_high_threshold = dynamic_base_price * (1 + up_percentage / 100)
+            sell_low_threshold = dynamic_base_price * (1 - down_percentage / 100)
 
             action_taken = False
 
@@ -343,7 +379,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
             # 2. If current price is lower than base_price and last action was sell (or no action), then buy
             # 3. Prevent consecutive same actions
 
-            should_buy = current_price < base_price and trading_state['last_action'] != 'buy'
+            should_buy = current_price < dynamic_base_price and trading_state['last_action'] != 'buy'
             should_sell = (
                 (current_price >= sell_high_threshold or current_price <= sell_low_threshold)
                 and trading_state['last_action'] != 'sell'
@@ -352,15 +388,19 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
             if should_buy:
                 simulate_buy(current_price, selected_token, trade_amount)
                 trading_state['last_action'] = 'buy'
-                last_action_price = current_price
+                # Update base price to the price at which we bought
+                dynamic_base_price = current_price
+                trading_state['dynamic_base_price'] = dynamic_base_price
                 action_taken = True
-                print(f"[TRADING ALGO] Buying at {current_price}, base: {base_price}, sell_high: {sell_high_threshold}, sell_low: {sell_low_threshold}")
+                print(f"[TRADING ALGO] Buying at {current_price}, updated base: {dynamic_base_price}, sell_high: {sell_high_threshold}, sell_low: {sell_low_threshold}")
             elif should_sell:
                 simulate_sell(current_price, selected_token, trade_amount)
                 trading_state['last_action'] = 'sell'
-                last_action_price = current_price
+                # Update base price to the price at which we sold
+                dynamic_base_price = current_price
+                trading_state['dynamic_base_price'] = dynamic_base_price
                 action_taken = True
-                print(f"[TRADING ALGO] Selling at {current_price}, base: {base_price}, sell_high: {sell_high_threshold}, sell_low: {sell_low_threshold}")
+                print(f"[TRADING ALGO] Selling at {current_price}, updated base: {dynamic_base_price}, sell_high: {sell_high_threshold}, sell_low: {sell_low_threshold}")
 
             # Log action if taken
             if action_taken:
@@ -373,7 +413,8 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                     'token': selected_token,
                     'token_symbol': get_token_symbol(selected_token),  # Include the token symbol for display
                     'price': price,
-                    'amount': trade_amount
+                    'amount': trade_amount,
+                    'base_price_at_execution': dynamic_base_price  # Record the dynamic base price at time of execution
                 })
 
                 # Keep only last 20 transactions
