@@ -567,14 +567,16 @@
                     displayPL = 'N/A';  // No P&L for buy transactions
                 }
 
-                // Part information
-                let displayPart = 'N/A';
-                if (tx.part_number !== undefined) {
+                // Part information - only show for sell operations
+                let displayPart = tx.action === 'buy' ? '-' : 'N/A';
+                if (tx.part_number !== undefined && tx.part_number !== null) {
                     if (tx.total_parts && tx.total_parts > 1) {
                         displayPart = `${tx.part_number}/${tx.total_parts}`;
                     } else {
                         displayPart = tx.part_number;  // Just show the part number if total is not informative
                     }
+                } else if (tx.action === 'buy') {
+                    displayPart = '-';  // Show dash for buy operations since they don't consume parts
                 }
 
                 html += `<tr>

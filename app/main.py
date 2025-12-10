@@ -474,25 +474,39 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                     # Total P&L for the sold amount
                     transaction_pnl = pnl_per_token * min(current_part_size, trading_state['position'])
 
-                # Determine the part number being sold (total_parts - remaining_parts = parts_sold)
+                # For sell operations: determine the part number being sold
+                # When we sell, we decrement remaining_parts, so to get which part was sold:
+                # If we started with 4 parts and now have 3 remaining, we sold part #1 (4-3=1)
+                # If we started with 4 parts and now have 2 remaining, we sold part #2 (4-2=2)
+                # So: part_number = total_parts - remaining_parts_AFTER_SELLING
                 total_parts = trading_state['parts']
-                remaining_parts = trading_state['remaining_parts']
-                current_part_number = total_parts - remaining_parts + 1  # Add 1 since we decrease after selling
+                current_part_number = total_parts - remaining_parts  # remaining_parts is already decremented
 
-                trading_state['transaction_history'].append({
+                # Prepare transaction record
+                tx_record = {
                     'timestamp': timestamp,
                     'action': action,
                     'token': selected_token,
                     'token_symbol': get_token_symbol(selected_token),  # Include the token symbol for display
                     'price': price,
-                    'amount': current_part_size,
+                    'amount': current_part_size if action == 'sell' else trade_amount,  # Use part_size for sell, full amount for buy
                     'base_price_at_execution': dynamic_base_price,  # Record the dynamic base price at time of execution
                     'pnl': transaction_pnl,  # Record profit/loss for this transaction
-                    'part_number': current_part_number,  # Record which part was traded
                     'total_parts': total_parts,  # Record total parts
                     'remaining_parts': remaining_parts,  # Record remaining parts
                     'execution_price': price  # Record the price at which this part was traded
-                })
+                }
+
+                # Only add part number for sell operations (buy operations don't consume parts)
+                if action == 'sell':
+                    tx_record['part_number'] = current_part_number
+                    tx_record['amount'] = current_part_size  # For sell operations, use part size
+                else:
+                    # For buy operations, don't include part information
+                    tx_record['part_number'] = None
+                    tx_record['amount'] = trade_amount  # For buy operations, use full trade amount
+
+                trading_state['transaction_history'].append(tx_record)
 
                 # Keep only last 20 transactions
                 if len(trading_state['transaction_history']) > 20:
