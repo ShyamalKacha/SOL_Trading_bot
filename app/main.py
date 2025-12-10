@@ -434,49 +434,50 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
             should_trade = (current_price >= sell_high_threshold or current_price <= sell_low_threshold)
 
             if should_trade:
-                # Look for parts to trade based on current price movement
+                # IMPLEMENT CORRECT LOGIC AS PER SPECIFICATION:
+                # When price rises, sell next part in sequence (1,2,3...) OR sell bought parts in reverse (...,3,2,1) if profitable
+                # When price falls, buy back sold parts in reverse (...,3,2,1) OR buy next part in sequence (1,2,3...)
+
                 part_to_process = None
-                should_buy_part = False  # True for buy, False for sell
+                should_buy_part = False  # False = sell, True = buy
 
                 if current_price >= sell_high_threshold:
-                    # Price has risen significantly - look for parts to sell (if we bought earlier) or buy back parts we sold earlier
-                    # First, see if we have any parts that were bought at lower prices to sell now for profit
-                    for i in range(len(part_tracking)):
+                    # PRICE RISING - Find parts to sell
+                    # First, look for parts that were bought at lower prices to sell for profit (in reverse order)
+                    for i in range(len(part_tracking)-1, -1, -1):  # Highest index first (reverse order)
                         if part_tracking[i] > 0:  # This part was bought at some price
                             # Check if current price is high enough compared to the buy price to sell for profit
                             buy_price = part_tracking[i]
-                            sell_threshold = buy_price * (1 + up_percentage / 100)  # Sell when current price is higher than buy price by up_percentage
-                            if current_price >= sell_threshold:
-                                # Found a part that was bought at a lower price, now it's time to sell for profit
+                            part_sell_threshold = buy_price * (1 + up_percentage / 100)
+                            if current_price >= part_sell_threshold:
                                 part_to_process = i
-                                should_buy_part = False  # We're selling this part
+                                should_buy_part = False  # SELL this bought part
                                 break
-                    if part_to_process is None:  # If no parts to sell for profit
-                        # Look for unsold parts to sell at current high price (they haven't been traded yet)
+                    if part_to_process is None:
+                        # No bought parts to sell for profit, so sell the next unsold part in sequence
                         for i in range(len(part_tracking)):
                             if part_tracking[i] == 0:  # This part hasn't been traded yet
                                 part_to_process = i
-                                should_buy_part = False  # We're selling this part initially
+                                should_buy_part = False  # SELL this part initially
                                 break
                 elif current_price <= sell_low_threshold:
-                    # Price has fallen significantly - look for parts to buy (if we sold earlier) or sell parts we bought earlier
-                    # First, see if we have any parts that were sold at higher prices to buy back at lower prices
-                    for i in range(len(part_tracking)):  # Forward order to process in the same order they were sold
+                    # PRICE FALLING - Find parts to buy
+                    # First, look for parts that were sold at higher prices to buy back (in reverse order)
+                    for i in range(len(part_tracking)-1, -1, -1):  # Highest index first (reverse order)
                         if part_tracking[i] < 0:  # This part was sold at some price
                             # Check if current price is low enough compared to the sell price to buy back
                             sell_price = abs(part_tracking[i])
-                            buy_threshold = sell_price * (1 - down_percentage / 100)  # Buy back when current price is lower than sell price by down_percentage
-                            if current_price <= buy_threshold:
-                                # Found a part that was sold at a higher price, now it's time to buy back
+                            part_buy_threshold = sell_price * (1 - down_percentage / 100)
+                            if current_price <= part_buy_threshold:
                                 part_to_process = i
-                                should_buy_part = True  # We're buying back this part
+                                should_buy_part = True  # BUY back this part
                                 break
-                    if part_to_process is None:  # If no parts to buy back
-                        # Look for unowned parts to buy at current low price (they haven't been traded yet)
+                    if part_to_process is None:
+                        # No sold parts to buy back, so buy the next unowned part in sequence
                         for i in range(len(part_tracking)):
                             if part_tracking[i] == 0:  # This part hasn't been traded yet
                                 part_to_process = i
-                                should_buy_part = True  # We're buying this part initially
+                                should_buy_part = True  # BUY this part
                                 break
 
                 # Execute the operation if we found a part to process
