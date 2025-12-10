@@ -508,12 +508,12 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
 
                         # FOR LADDERING: Only update reference for NEW transactions (not for counter-trades)
                         # Check if this was a new buy (part was unprocessed) or a buyback (part was previously sold)
-                        original_value = part_tracking[part_to_process]  # Get original value before update
-                        if original_value == 0:  # This was a new buy (not a buyback)
+                        original_value_at_start = part_tracking[part_to_process]  # Get original value before this transaction
+                        if original_value_at_start == 0:  # This was a new buy (not a buyback)
                             trading_state['reference_price'] = current_price  # Update reference for future thresholds
-                            print(f"[LADDERING-TRADING] NEW buy at {current_price}, updated reference: {trading_state['reference_price']}")
+                            print(f"[LADDERING-TRADING] NEW part {part_to_process+1} buy at {current_price}, updated reference: {trading_state['reference_price']}")
                         else:  # This is a buyback of previously sold part
-                            print(f"[LADDERING-TRADING] Buyback at {current_price}, reference unchanged: {trading_state['reference_price']}")
+                            print(f"[LADDERING-TRADING] Part {part_to_process+1} buyback at {current_price}, reference unchanged: {trading_state['reference_price']}")
 
                         # Update position and average purchase price
                         old_position_value = trading_state['position'] * trading_state['avg_purchase_price']
@@ -533,16 +533,16 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
 
                         # FOR LADDERING: Only update reference for NEW transactions (not for counter-trades)
                         # Check if this was a new sell (part was unprocessed) or a sellback (part was previously bought)
-                        original_value = part_tracking[part_to_process]  # Get original value before update
-                        if original_value == 0:  # This was a new sell (not a sellback)
+                        original_value_at_start = part_tracking[part_to_process]  # Get original value before this transaction
+                        if original_value_at_start == 0:  # This was a new sell (not a sellback)
                             trading_state['reference_price'] = current_price  # Update reference for future thresholds
-                            print(f"[LADDERING-TRADING] NEW sell at {current_price}, updated reference: {trading_state['reference_price']}")
+                            print(f"[LADDERING-TRADING] NEW part {part_to_process+1} sell at {current_price}, updated reference: {trading_state['reference_price']}")
                         else:  # This is a sellback of previously bought part
-                            print(f"[LADDERING-TRADING] Sellback at {current_price}, reference unchanged: {trading_state['reference_price']}")
+                            print(f"[LADDERING-TRADING] Part {part_to_process+1} sellback at {current_price}, reference unchanged: {trading_state['reference_price']}")
 
                         # Update profit and position
                         # Calculate profit from this specific part based on when it was acquired
-                        original_value = part_tracking[part_to_process]
+                        original_value = part_tracking[part_to_process]  # Use the original value from beginning of iteration
                         if original_value < 0:  # This part was previously sold and is now being bought back
                             # Calculate profit based on the previous sell and current buyback price
                             previous_sell_price = abs(original_value)
