@@ -508,7 +508,15 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
 
                         # Update profit and position
                         # Calculate profit from this specific part
-                        original_cost = abs(part_tracking[part_to_process]) if part_tracking[part_to_process] != 0 else current_price
+                        # If the original value was positive (indicating it was bought), that's our cost basis for profit calculation
+                        original_value = part_tracking[part_to_process]
+                        if original_value > 0:  # This part was bought at some price previously
+                            original_cost = original_value  # Use the original buy price
+                        else:  # This was an unsold part (value 0) or other case
+                            # If we're selling a part that wasn't bought, there's likely an error in logic
+                            # For now, we'll use the current dynamic base price as reference
+                            original_cost = dynamic_base_price
+
                         profit_per_token = current_price - original_cost
                         total_profit_from_part = profit_per_token * part_size
                         trading_state['total_profit'] += total_profit_from_part
