@@ -123,6 +123,12 @@
                             <input type="number" class="form-control" id="tradeAmount" placeholder="Enter trade amount" value="10" min="0" step="0.01">
                         </div>
 
+                        <div class="mb-3">
+                            <label for="partsInput" class="form-label">Number of Parts</label>
+                            <input type="number" class="form-control" id="partsInput" placeholder="Enter number of parts" value="1" min="1" step="1">
+                            <div class="form-text">Total trade amount will be divided into this many parts</div>
+                        </div>
+
                         <div class="d-grid gap-2">
                             <button id="startTradingBtn" class="btn btn-success">Start Trading</button>
                             <button id="stopTradingBtn" class="btn btn-danger">Stop Trading</button>
@@ -191,6 +197,7 @@
                                     <tr>
                                         <th>Time</th>
                                         <th>Action</th>
+                                        <th>Part</th>
                                         <th>Token</th>
                                         <th>Price ($)</th>
                                         <th>Base Price ($)</th>
@@ -200,7 +207,7 @@
                                 </thead>
                                 <tbody id="transactionHistory">
                                     <tr>
-                                        <td colspan="7" class="text-center">No transactions yet</td>
+                                        <td colspan="8" class="text-center">No transactions yet</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -232,6 +239,7 @@
         const lastAction = document.getElementById('lastAction');
         const lastUpdated = document.getElementById('lastUpdated');
         const transactionHistory = document.getElementById('transactionHistory');
+        const partsInput = document.getElementById('partsInput');
         let tradingInterval = null;
 
         // Initialize Solana connection
@@ -355,17 +363,23 @@
                 upPercentage: parseFloat(document.getElementById('upPercentage').value),
                 downPercentage: parseFloat(document.getElementById('downPercentage').value),
                 selectedToken: selectedToken,
-                tradeAmount: parseFloat(document.getElementById('tradeAmount').value)
+                tradeAmount: parseFloat(document.getElementById('tradeAmount').value),
+                parts: parseInt(document.getElementById('partsInput').value)
             };
 
             // Validate inputs
-            if (isNaN(config.basePrice) || isNaN(config.upPercentage) || isNaN(config.downPercentage) || isNaN(config.tradeAmount)) {
+            if (isNaN(config.basePrice) || isNaN(config.upPercentage) || isNaN(config.downPercentage) || isNaN(config.tradeAmount) || isNaN(config.parts)) {
                 alert('Please enter valid numbers for all fields');
                 return;
             }
 
             if (!config.selectedToken) {
                 alert('Please select a token or enter a custom token address');
+                return;
+            }
+
+            if (config.parts <= 0) {
+                alert('Number of parts must be greater than 0');
                 return;
             }
 
@@ -525,7 +539,7 @@
         // Function to update transaction history table
         function updateTransactionHistory(transactions) {
             if (transactions.length === 0) {
-                transactionHistory.innerHTML = '<tr><td colspan="7" class="text-center">No transactions yet</td></tr>';
+                transactionHistory.innerHTML = '<tr><td colspan="8" class="text-center">No transactions yet</td></tr>';
                 return;
             }
 
@@ -553,9 +567,20 @@
                     displayPL = 'N/A';  // No P&L for buy transactions
                 }
 
+                // Part information
+                let displayPart = 'N/A';
+                if (tx.part_number !== undefined) {
+                    if (tx.total_parts && tx.total_parts > 1) {
+                        displayPart = `${tx.part_number}/${tx.total_parts}`;
+                    } else {
+                        displayPart = tx.part_number;  // Just show the part number if total is not informative
+                    }
+                }
+
                 html += `<tr>
                     <td>${tx.timestamp}</td>
                     <td><span class="badge bg-${tx.action === 'buy' ? 'success' : 'danger'}">${tx.action}</span></td>
+                    <td>${displayPart}</td>  <!-- Part number -->
                     <td>${displayToken}</td>
                     <td>$${displayPrice}</td>  <!-- Current price at execution -->
                     <td>$${displayBasePrice}</td>  <!-- Base price at execution -->
