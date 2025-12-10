@@ -454,11 +454,32 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
 
                 # Use the reference price (instead of dynamic base) for laddering decisions
                 if current_price >= sell_high_threshold:
-                    # PRICE RISING - Find parts to sell with laddering logic
-                    # 1. Look for sold parts to buy back (in reverse order - highest indices first)
-                    # 2. If none, sell the next unprocessed part in sequence
+                    # PRICE RISING - Look for sell opportunities with proper laddering logic
+                    # 1. Look for parts currently held to sell (in reverse order - highest indices first) - parts were bought at lower prices
+                    # 2. If no held parts to sell, sell the next unprocessed part
 
-                    # Look for parts that were previously sold and are eligible for buyback
+                    # Look for parts that were bought and are eligible for selling (at higher prices)
+                    for i in range(len(part_tracking)-1, -1, -1):
+                        if part_tracking[i] > 0:  # This part was bought at some price
+                            buy_price = part_tracking[i]
+                            sell_threshold = buy_price * (1 + up_percentage / 100)
+                            if current_price >= sell_threshold:
+                                part_to_process = i
+                                should_buy_part = False  # SELL this part
+                                break
+                    if part_to_process is None:
+                        # No parts to sell, so sell the next unprocessed part in sequence
+                        for i in range(len(part_tracking)):
+                            if part_tracking[i] == 0:  # This part hasn't been traded yet
+                                part_to_process = i
+                                should_buy_part = False  # SELL this unprocessed part
+                                break
+                elif current_price <= sell_low_threshold:
+                    # PRICE FALLING - Look for buy opportunities with proper laddering logic
+                    # 1. Look for parts that were previously sold to buy back (in reverse order - highest indices first)
+                    # 2. If no parts to buy back, buy the next unprocessed part in sequence
+
+                    # Look for parts that were sold and are eligible for buyback (at lower prices)
                     for i in range(len(part_tracking)-1, -1, -1):
                         if part_tracking[i] < 0:  # This part was sold at some price
                             sold_price = abs(part_tracking[i])
@@ -468,28 +489,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                                 should_buy_part = True  # BUY back this part
                                 break
                     if part_to_process is None:
-                        # No parts to buy back, so sell the next available unprocessed part
-                        for i in range(len(part_tracking)):
-                            if part_tracking[i] == 0:  # This part hasn't been traded yet
-                                part_to_process = i
-                                should_buy_part = False  # SELL this unprocessed part
-                                break
-                elif current_price <= sell_low_threshold:
-                    # PRICE FALLING - Find parts to buy with laddering logic
-                    # 1. Look for parts currently held to sell (in reverse order - highest indices first)
-                    # 2. If none, buy the next unprocessed part in sequence
-
-                    # Look for parts that were bought and are eligible for selling
-                    for i in range(len(part_tracking)-1, -1, -1):
-                        if part_tracking[i] > 0:  # This part is currently held
-                            buy_price = part_tracking[i]
-                            sell_threshold = buy_price * (1 + up_percentage / 100)
-                            if current_price >= sell_threshold:
-                                part_to_process = i
-                                should_buy_part = False  # SELL this part
-                                break
-                    if part_to_process is None:
-                        # No parts to sell, so buy the next unprocessed part
+                        # No parts to buy back, so buy the next unprocessed part in sequence
                         for i in range(len(part_tracking)):
                             if part_tracking[i] == 0:  # This part hasn't been traded yet
                                 part_to_process = i
@@ -506,9 +506,14 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         # Mark this part as bought (store the price as positive)
                         trading_state['part_tracking'][part_to_process] = current_price
 
-                        # FOR LADDERING: Update reference price to the price at which we bought
-                        # This becomes the new reference for calculating next transaction thresholds
-                        trading_state['reference_price'] = current_price
+                        # FOR LADDERING: Only update reference for NEW transactions (not for counter-trades)
+                        # Check if this was a new buy (part was unprocessed) or a buyback (part was previously sold)
+                        original_value = part_tracking[part_to_process]  # Get original value before update
+                        if original_value == 0:  # This was a new buy (not a buyback)
+                            trading_state['reference_price'] = current_price  # Update reference for future thresholds
+                            print(f"[LADDERING-TRADING] NEW buy at {current_price}, updated reference: {trading_state['reference_price']}")
+                        else:  # This is a buyback of previously sold part
+                            print(f"[LADDERING-TRADING] Buyback at {current_price}, reference unchanged: {trading_state['reference_price']}")
 
                         # Update position and average purchase price
                         old_position_value = trading_state['position'] * trading_state['avg_purchase_price']
@@ -526,9 +531,14 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         # Mark this part as sold (store the price as negative)
                         trading_state['part_tracking'][part_to_process] = -current_price
 
-                        # FOR LADDERING: Update reference price to the price at which we sold
-                        # This becomes the new reference for calculating next transaction thresholds
-                        trading_state['reference_price'] = current_price
+                        # FOR LADDERING: Only update reference for NEW transactions (not for counter-trades)
+                        # Check if this was a new sell (part was unprocessed) or a sellback (part was previously bought)
+                        original_value = part_tracking[part_to_process]  # Get original value before update
+                        if original_value == 0:  # This was a new sell (not a sellback)
+                            trading_state['reference_price'] = current_price  # Update reference for future thresholds
+                            print(f"[LADDERING-TRADING] NEW sell at {current_price}, updated reference: {trading_state['reference_price']}")
+                        else:  # This is a sellback of previously bought part
+                            print(f"[LADDERING-TRADING] Sellback at {current_price}, reference unchanged: {trading_state['reference_price']}")
 
                         # Update profit and position
                         # Calculate profit from this specific part based on when it was acquired
