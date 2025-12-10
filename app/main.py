@@ -285,7 +285,7 @@ def get_trading_status():
     return jsonify(status)
 
 def trading_algorithm(base_price, up_percentage, down_percentage, selected_token, trade_amount, parts):
-    """Main trading algorithm with dynamic base price adjustment"""
+    """Main trading algorithm with part-based tracking"""
     global trading_state
     trading_state['is_running'] = True
     trading_state['last_action'] = None
@@ -297,7 +297,40 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
     part_size = trade_amount / parts
     trading_state['parts'] = parts
     trading_state['part_size'] = part_size
-    trading_state['remaining_parts'] = parts  # Track how many parts remain to be sold
+
+    # Fetch initial price when starting and update base_price to current market price
+    try:
+        # Determine the output mint based on the selected token for initial price
+        if selected_token == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v":  # USDC
+            output_mint = selected_token
+            input_mint = "So11111111111111111111111111111111111111112"  # SOL
+        elif selected_token == "So11111111111111111111111111111111111111112":  # SOL or wSOL
+            input_mint = "So11111111111111111111111111111111111111112"  # SOL
+            output_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
+        else:
+            input_mint = selected_token
+            output_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
+
+        initial_price_response = get_jupiter_price_direct(input_mint, output_mint, 1000000000)
+        if initial_price_response["success"]:
+            initial_current_price = initial_price_response["price"]
+            # Update the base price to current market price when starting
+            dynamic_base_price = initial_current_price
+            trading_state['current_price'] = initial_current_price
+            trading_state['dynamic_base_price'] = dynamic_base_price
+            print(f"Updated base price to initial current price: {dynamic_base_price}")
+        else:
+            # If initial price fetch fails, use the provided base price
+            trading_state['current_price'] = dynamic_base_price
+            trading_state['dynamic_base_price'] = dynamic_base_price
+            print(f"Using provided base price: {dynamic_base_price}")
+    except Exception as e:
+        print(f"Error getting initial price: {e}")
+        trading_state['current_price'] = dynamic_base_price
+        trading_state['dynamic_base_price'] = dynamic_base_price
+
+    # Initialize parts tracking: 0 means not activated, negative means sold at that price, positive means bought at that price
+    trading_state['part_tracking'] = [0] * parts  # [0, 0, 0, 0] for 4 parts initially
 
     # Start with the initial base price, but update to current price on start
     dynamic_base_price = base_price
@@ -387,77 +420,106 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                 time.sleep(5)  # Wait before next iteration
                 continue  # Skip trading logic if price is invalid
 
-            # Determine action based on current price and the dynamic base price
+            # NEW PART-BASED LOGIC: Track each part individually with its own buy/sell history
+            action_taken = False
+            part_tracking = trading_state['part_tracking']
+            part_size = trading_state['part_size']
+
+            # Check if we should perform a trading operation
+            # Calculate thresholds based on base price and current market conditions
             sell_high_threshold = dynamic_base_price * (1 + up_percentage / 100)
             sell_low_threshold = dynamic_base_price * (1 - down_percentage / 100)
 
-            action_taken = False
+            # Determine if we should engage in trading based on current price vs thresholds
+            should_trade = (current_price >= sell_high_threshold or current_price <= sell_low_threshold)
 
-            # The logic should be:
-            # 1. If current price is higher than sell_high_threshold and last action was buy, then sell ONE PART
-            # 2. If current price is lower than base_price and last action was sell (or no action), then buy
-            # 3. Prevent consecutive same actions
-            # 4. Only sell parts if parts are remaining
+            if should_trade:
+                # Look for parts to trade based on current price movement
+                part_to_process = None
+                should_buy_part = False  # True for buy, False for sell
 
-            should_buy = current_price < dynamic_base_price and trading_state['last_action'] != 'buy'
-            should_sell = (
-                (current_price >= sell_high_threshold or current_price <= sell_low_threshold)
-                and trading_state['last_action'] != 'sell'
-                and trading_state['remaining_parts'] > 0  # Only sell if parts remain
-            )
+                if current_price >= sell_high_threshold:
+                    # Price has risen significantly - look for parts to sell (if we bought earlier) or buy back parts we sold earlier
+                    # First, see if we have any parts that were bought at lower prices to sell now for profit
+                    for i in range(len(part_tracking)):
+                        if part_tracking[i] > 0:  # This part was bought at some price
+                            # Check if current price is high enough compared to the buy price to sell for profit
+                            buy_price = part_tracking[i]
+                            sell_threshold = buy_price * (1 + up_percentage / 100)  # Sell when current price is higher than buy price by up_percentage
+                            if current_price >= sell_threshold:
+                                # Found a part that was bought at a lower price, now it's time to sell for profit
+                                part_to_process = i
+                                should_buy_part = False  # We're selling this part
+                                break
+                    if part_to_process is None:  # If no parts to sell for profit
+                        # Look for unsold parts to sell at current high price (they haven't been traded yet)
+                        for i in range(len(part_tracking)):
+                            if part_tracking[i] == 0:  # This part hasn't been traded yet
+                                part_to_process = i
+                                should_buy_part = False  # We're selling this part initially
+                                break
+                elif current_price <= sell_low_threshold:
+                    # Price has fallen significantly - look for parts to buy (if we sold earlier) or sell parts we bought earlier
+                    # First, see if we have any parts that were sold at higher prices to buy back at lower prices
+                    for i in range(len(part_tracking)):  # Forward order to process in the same order they were sold
+                        if part_tracking[i] < 0:  # This part was sold at some price
+                            # Check if current price is low enough compared to the sell price to buy back
+                            sell_price = abs(part_tracking[i])
+                            buy_threshold = sell_price * (1 - down_percentage / 100)  # Buy back when current price is lower than sell price by down_percentage
+                            if current_price <= buy_threshold:
+                                # Found a part that was sold at a higher price, now it's time to buy back
+                                part_to_process = i
+                                should_buy_part = True  # We're buying back this part
+                                break
+                    if part_to_process is None:  # If no parts to buy back
+                        # Look for unowned parts to buy at current low price (they haven't been traded yet)
+                        for i in range(len(part_tracking)):
+                            if part_tracking[i] == 0:  # This part hasn't been traded yet
+                                part_to_process = i
+                                should_buy_part = True  # We're buying this part initially
+                                break
 
-            if should_buy:
-                simulate_buy(current_price, selected_token, trade_amount)
-                trading_state['last_action'] = 'buy'
-                # Update base price to the price at which we bought
-                dynamic_base_price = current_price
-                trading_state['dynamic_base_price'] = dynamic_base_price
+                # Execute the operation if we found a part to process
+                if part_to_process is not None:
+                    # Record the action and update state
+                    if should_buy_part:
+                        # Buy this part
+                        simulate_buy(current_price, selected_token, part_size)
+                        trading_state['last_action'] = 'buy'
+                        # Mark this part as bought (store the price as positive)
+                        trading_state['part_tracking'][part_to_process] = current_price
 
-                # Update position and average purchase price
-                # Calculate weighted average purchase price
-                old_position_value = trading_state['position'] * trading_state['avg_purchase_price']
-                new_purchase_value = trade_amount * current_price
-                trading_state['position'] += trade_amount
-                trading_state['avg_purchase_price'] = (old_position_value + new_purchase_value) / trading_state['position'] if trading_state['position'] > 0 else 0
+                        # Update position and average purchase price
+                        old_position_value = trading_state['position'] * trading_state['avg_purchase_price']
+                        new_purchase_value = part_size * current_price
+                        trading_state['position'] += part_size
+                        if trading_state['position'] > 0:
+                            trading_state['avg_purchase_price'] = (old_position_value + new_purchase_value) / trading_state['position']
 
-                action_taken = True
-                print(f"[TRADING ALGO] Buying at {current_price}, updated base: {dynamic_base_price}, sell_high: {sell_high_threshold}, sell_low: {sell_low_threshold}")
-            elif should_sell:
-                # Only sell one part at a time
-                part_to_sell = trading_state['part_size']
-
-                simulate_sell(current_price, selected_token, part_to_sell)
-                trading_state['last_action'] = 'sell'
-                # Update base price to the price at which we sold
-                dynamic_base_price = current_price
-                trading_state['dynamic_base_price'] = dynamic_base_price
-
-                # Decrement remaining parts
-                trading_state['remaining_parts'] -= 1
-
-                # Calculate profit from this sale
-                if trading_state['position'] > 0:
-                    # Calculate profit per token
-                    profit_per_token = current_price - trading_state['avg_purchase_price']
-                    total_profit_from_sale = profit_per_token * min(part_to_sell, trading_state['position'])
-
-                    # Update total profit
-                    trading_state['total_profit'] += total_profit_from_sale
-
-                    # Reduce position
-                    trading_state['position'] -= min(part_to_sell, trading_state['position'])
-
-                    # If we've sold all tokens, reset average purchase price
-                    if trading_state['position'] <= 0:
-                        trading_state['position'] = 0
-                        trading_state['avg_purchase_price'] = 0
+                        action_taken = True
+                        print(f"[PART-TRADING] Part {part_to_process+1} BOUGHT at {current_price}. Part #{part_to_process+1} state: {part_tracking[part_to_process]} -> {current_price}")
                     else:
-                        # If we still hold some tokens, the average purchase price doesn't change
-                        # because we're just reducing the quantity
-                        pass
+                        # Sell this part
+                        simulate_sell(current_price, selected_token, part_size)
+                        trading_state['last_action'] = 'sell'
+                        # Mark this part as sold (store the price as negative)
+                        trading_state['part_tracking'][part_to_process] = -current_price
 
-                action_taken = True
-                print(f"[TRADING ALGO] Selling part at {current_price}, remaining parts: {trading_state['remaining_parts']}, updated base: {dynamic_base_price}, sell_high: {sell_high_threshold}, sell_low: {sell_low_threshold}, current_total_profit: {trading_state['total_profit']}")
+                        # Update profit and position
+                        # Calculate profit from this specific part
+                        original_cost = abs(part_tracking[part_to_process]) if part_tracking[part_to_process] != 0 else current_price
+                        profit_per_token = current_price - original_cost
+                        total_profit_from_part = profit_per_token * part_size
+                        trading_state['total_profit'] += total_profit_from_part
+
+                        # Reduce position
+                        trading_state['position'] -= min(part_size, trading_state['position'])
+                        if trading_state['position'] <= 0:
+                            trading_state['position'] = 0
+                            trading_state['avg_purchase_price'] = 0
+
+                        action_taken = True
+                        print(f"[PART-TRADING] Part {part_to_process+1} SOLD at {current_price}. Part #{part_to_process+1} state: {part_tracking[part_to_process]} -> {-current_price}")
 
             # Log action if taken
             if action_taken:
@@ -468,19 +530,16 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                 # Calculate profit/loss for this transaction
                 transaction_pnl = None
                 current_part_size = trading_state['part_size']
-                if action == 'sell' and trading_state.get('avg_purchase_price', 0) > 0:
-                    # Calculate P&L per token sold
-                    pnl_per_token = price - trading_state['avg_purchase_price']
-                    # Total P&L for the sold amount
-                    transaction_pnl = pnl_per_token * min(current_part_size, trading_state['position'])
 
-                # For sell operations: determine the part number being sold
-                # When we sell, we decrement remaining_parts, so to get which part was sold:
-                # If we started with 4 parts and now have 3 remaining, we sold part #1 (4-3=1)
-                # If we started with 4 parts and now have 2 remaining, we sold part #2 (4-2=2)
-                # So: part_number = total_parts - remaining_parts_AFTER_SELLING
-                total_parts = trading_state['parts']
-                current_part_number = total_parts - remaining_parts  # remaining_parts is already decremented
+                if action == 'sell':
+                    # For sell, calculate profit from the price at which we bought this part
+                    original_price = abs(part_tracking[part_to_process]) if part_tracking[part_to_process] < 0 else price
+                    pnl_per_token = price - original_price
+                    # Total P&L for the sold amount
+                    transaction_pnl = pnl_per_token * current_part_size
+                elif action == 'buy':
+                    # For buy, P&L is not calculated until the part is sold again
+                    transaction_pnl = None
 
                 # Prepare transaction record
                 tx_record = {
@@ -489,22 +548,17 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                     'token': selected_token,
                     'token_symbol': get_token_symbol(selected_token),  # Include the token symbol for display
                     'price': price,
-                    'amount': current_part_size if action == 'sell' else trade_amount,  # Use part_size for sell, full amount for buy
+                    'amount': current_part_size,  # Use part size for both buy and sell
                     'base_price_at_execution': dynamic_base_price,  # Record the dynamic base price at time of execution
                     'pnl': transaction_pnl,  # Record profit/loss for this transaction
-                    'total_parts': total_parts,  # Record total parts
-                    'remaining_parts': remaining_parts,  # Record remaining parts
+                    'total_parts': len(part_tracking),  # Record total parts
                     'execution_price': price  # Record the price at which this part was traded
                 }
 
-                # Only add part number for sell operations (buy operations don't consume parts)
-                if action == 'sell':
-                    tx_record['part_number'] = current_part_number
-                    tx_record['amount'] = current_part_size  # For sell operations, use part size
-                else:
-                    # For buy operations, don't include part information
-                    tx_record['part_number'] = None
-                    tx_record['amount'] = trade_amount  # For buy operations, use full trade amount
+                # Add part number for both buy and sell operations as both are part of the system
+                tx_record['part_number'] = part_to_process + 1  # 1-indexed part number
+                tx_record['original_price'] = abs(part_tracking[part_to_process]) if part_tracking[part_to_process] != 0 else price  # Store the original price for reference
+                tx_record['part_status_before'] = part_tracking[part_to_process]  # Store the status before the transaction
 
                 trading_state['transaction_history'].append(tx_record)
 
