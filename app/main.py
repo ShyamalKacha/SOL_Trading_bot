@@ -438,7 +438,8 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
             # IMPLEMENT LADDERING LOGIC: Each transaction updates reference price for next transaction
             # Reference price gets updated after each buy/sell to the execution price
             action_taken = False
-            part_tracking = trading_state['part_tracking']
+            # Create a copy of the part tracking to preserve original values before any updates
+            part_tracking = list(trading_state['part_tracking'])  # Create a shallow copy
             part_size = trading_state['part_size']
             reference_price = trading_state['reference_price']  # Use reference price for laddering effect
 
