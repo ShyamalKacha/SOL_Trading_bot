@@ -235,13 +235,13 @@ def start_trading():
     global trading_state
     data = request.get_json()
 
-    # Validate required parameters
-    required_fields = ['basePrice', 'upPercentage', 'downPercentage', 'selectedToken', 'tradeAmount', 'parts']
+    # Validate required parameters (removed basePrice since it's now automatically set)
+    required_fields = ['upPercentage', 'downPercentage', 'selectedToken', 'tradeAmount', 'parts']
     for field in required_fields:
         if field not in data:
             return jsonify({"error": f"Missing required field: {field}"}), 400
 
-    base_price = float(data['basePrice'])
+    # We no longer need basePrice from the form - we'll get current market price and use that as base
     up_percentage = float(data['upPercentage'])
     down_percentage = float(data['downPercentage'])
     selected_token = data['selectedToken']
@@ -257,10 +257,10 @@ def start_trading():
     # Stop any existing trading thread
     trading_state['is_running'] = False
 
-    # Start new trading thread
+    # Start new trading thread - the algorithm will fetch current price and use it as base
     trading_thread = threading.Thread(
         target=trading_algorithm,
-        args=(base_price, up_percentage, down_percentage, selected_token, trade_amount, parts)
+        args=(0, up_percentage, down_percentage, selected_token, trade_amount, parts)  # Pass 0 as placeholder for base_price
     )
     trading_thread.daemon = True
     trading_thread.start()
@@ -299,8 +299,8 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
     trading_state['part_size'] = part_size
 
     # Initialize the reference price for laddering effect
-    # This price gets updated after each transaction and becomes the new reference for next threshold
-    trading_state['reference_price'] = base_price  # Start with base price
+    # This price will be set to current market price when starting, not from parameters
+    # trading_state['reference_price'] = base_price  # Commented out - using current price instead
 
     # Track the index of next part to trade (for sequential selling/buying)
     trading_state['next_sell_part_index'] = 0  # Next index to sell when price rises
@@ -365,20 +365,21 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
         initial_price_response = get_jupiter_price_direct(input_mint, output_mint, 1000000000)
         if initial_price_response["success"]:
             initial_current_price = initial_price_response["price"]
-            # Update the base price to current market price when starting
-            dynamic_base_price = initial_current_price
+            # Set the reference price to current market price when starting (for laddering system)
+            trading_state['reference_price'] = initial_current_price  # Use reference price for laddering
             trading_state['current_price'] = initial_current_price
-            trading_state['dynamic_base_price'] = dynamic_base_price
-            print(f"Updated base price to initial current price: {dynamic_base_price}")
+            print(f"Set reference price to initial current market price: {initial_current_price}")
         else:
-            # If initial price fetch fails, use the provided base price
-            trading_state['current_price'] = dynamic_base_price
-            trading_state['dynamic_base_price'] = dynamic_base_price
-            print(f"Using provided base price: {dynamic_base_price}")
+            # If initial price fetch fails, use a default value
+            default_price = 100  # Default fallback
+            trading_state['reference_price'] = default_price  # Use reference price for laddering
+            trading_state['current_price'] = default_price
+            print(f"Using default reference price: {default_price}")
     except Exception as e:
         print(f"Error getting initial price: {e}")
-        trading_state['current_price'] = dynamic_base_price
-        trading_state['dynamic_base_price'] = dynamic_base_price
+        default_price = 100  # Default fallback
+        trading_state['reference_price'] = default_price  # Use reference price for laddering
+        trading_state['current_price'] = default_price
 
     # Keep track of the price at which the last action was taken
     last_action_price = None
@@ -407,9 +408,9 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
             if price_response["success"]:
                 current_price = price_response["price"]
                 trading_state['current_price'] = current_price
-                # Update the dynamic base price in the trading state
-                trading_state['dynamic_base_price'] = dynamic_base_price
-                print(f"Got price: {current_price} for token {selected_token}, dynamic base: {dynamic_base_price}")
+                # Update the reference price in the trading state (for laddering display)
+                trading_state['dynamic_base_price'] = trading_state['reference_price']  # Keep this for UI display
+                print(f"Got price: {current_price} for token {selected_token}, reference: {trading_state['reference_price']}")
             else:
                 print(f"Failed to get price for main pair: {price_response.get('message', 'Unknown error')}")
 

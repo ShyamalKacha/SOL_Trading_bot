@@ -104,8 +104,9 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="basePrice" class="form-label">Base Price ($)</label>
-                            <input type="number" class="form-control" id="basePrice" placeholder="Enter base price" value="100">
+                            <label class="form-label">Base Price ($)</label>
+                            <div class="form-control-plaintext bg-light p-2 rounded">$<span id="autoBasePrice">--</span></div>
+                            <div class="form-text">Automatically set to current market price when trading starts</div>
                         </div>
 
                         <div class="mb-3">
@@ -349,7 +350,7 @@
             const customTokenAddress = document.getElementById('customTokenAddress').value.trim();
 
             if (customTokenAddress) {
-                // Validate that it looks like a Solana address (5 characters minimum, base58-like)
+                // Validate that it looks like a Solana address (32-44 characters)
                 if (customTokenAddress.length >= 32 && customTokenAddress.length <= 44) {
                     selectedToken = customTokenAddress;
                 } else {
@@ -359,7 +360,6 @@
             }
 
             const config = {
-                basePrice: parseFloat(document.getElementById('basePrice').value),
                 upPercentage: parseFloat(document.getElementById('upPercentage').value),
                 downPercentage: parseFloat(document.getElementById('downPercentage').value),
                 selectedToken: selectedToken,
@@ -368,7 +368,7 @@
             };
 
             // Validate inputs
-            if (isNaN(config.basePrice) || isNaN(config.upPercentage) || isNaN(config.downPercentage) || isNaN(config.tradeAmount) || isNaN(config.parts)) {
+            if (isNaN(config.upPercentage) || isNaN(config.downPercentage) || isNaN(config.tradeAmount) || isNaN(config.parts)) {
                 alert('Please enter valid numbers for all fields');
                 return;
             }
@@ -394,6 +394,17 @@
 
                 const data = await response.json();
                 console.log('Trading started:', data);
+
+                // Update the automatic base price display to show the current market price
+                // Get current price from the status API to show as the base price
+                setTimeout(async () => {
+                    const statusResponse = await fetch('/api/trading-status');
+                    const statusData = await statusResponse.json();
+                    if (statusData.current_price) {
+                        document.getElementById('autoBasePrice').textContent = statusData.current_price.toFixed(8);
+                    }
+                }, 1000);  // Slight delay to allow base price to be set
+
                 updateStatus(true);
 
                 // Start polling for status updates
