@@ -285,7 +285,7 @@ def get_trading_status():
     return jsonify(status)
 
 def trading_algorithm(base_price, up_percentage, down_percentage, selected_token, trade_amount, parts):
-    """Main trading algorithm with laddering effect - each transaction sets reference for next"""
+    """Main trading algorithm with correct laddering logic - each transaction updates the base price"""
     global trading_state
     trading_state['is_running'] = True
     trading_state['last_action'] = None
@@ -298,22 +298,9 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
     trading_state['parts'] = parts
     trading_state['part_size'] = part_size
 
-    # Initialize the reference price for laddering effect
-    # This price will be set to current market price when starting, not from parameters
-    # trading_state['reference_price'] = base_price  # Commented out - using current price instead
-
-    # Track the index of next part to trade (for sequential selling/buying)
-    trading_state['next_sell_part_index'] = 0  # Next index to sell when price rises
-    trading_state['next_buy_part_index'] = 0   # Next index to buy when price falls
-
-    # Track individual parts: 0 = not traded, positive = bought at price, negative = sold at price
-    trading_state['part_tracking'] = [0] * parts  # [0, 0, 0, 0] for 4 parts initially
-
-    # Track which parts are currently available for trading
-    # For selling: untraded parts are candidates for selling
-    # For buying: sold parts are candidates for buying back
-    trading_state['available_sell_parts'] = list(range(parts))  # [0, 1, 2, 3] - indices of parts to sell
-    trading_state['available_buy_parts'] = []  # Indices of parts that were sold and can be bought back
+    # Track consecutive buy/sell operations
+    trading_state['consecutive_buys'] = 0
+    trading_state['consecutive_sells'] = 0
 
     # Fetch initial price when starting and update base_price to current market price
     try:
@@ -331,58 +318,21 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
         initial_price_response = get_jupiter_price_direct(input_mint, output_mint, 1000000000)
         if initial_price_response["success"]:
             initial_current_price = initial_price_response["price"]
-            # Update the reference price to current market price when starting
-            reference_price = initial_current_price
-            trading_state['reference_price'] = reference_price  # Use reference price instead of dynamic_base_price for laddering
+            # Set the base price to current market price when starting
+            trading_state['base_price'] = initial_current_price
             trading_state['current_price'] = initial_current_price
-            print(f"Updated reference price to initial current price: {reference_price}")
-        else:
-            # If initial price fetch fails, use the provided base price
-            trading_state['reference_price'] = base_price
-            trading_state['current_price'] = base_price
-            print(f"Using provided base price: {base_price}")
-    except Exception as e:
-        print(f"Error getting initial price: {e}")
-        trading_state['reference_price'] = base_price
-        trading_state['current_price'] = base_price
-
-    # Initialize parts tracking: 0 means not activated, negative means sold at that price, positive means bought at that price
-    trading_state['part_tracking'] = [0] * parts  # [0, 0, 0, 0] for 4 parts initially
-
-    # Fetch initial price when starting and update base_price to current market price
-    try:
-        # Determine the output mint based on the selected token for initial price
-        if selected_token == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v":  # USDC
-            output_mint = selected_token
-            input_mint = "So11111111111111111111111111111111111111112"  # SOL
-        elif selected_token == "So11111111111111111111111111111111111111112":  # SOL or wSOL
-            input_mint = "So11111111111111111111111111111111111111112"  # SOL
-            output_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
-        else:
-            input_mint = selected_token
-            output_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
-
-        initial_price_response = get_jupiter_price_direct(input_mint, output_mint, 1000000000)
-        if initial_price_response["success"]:
-            initial_current_price = initial_price_response["price"]
-            # Set the reference price to current market price when starting (for laddering system)
-            trading_state['reference_price'] = initial_current_price  # Use reference price for laddering
-            trading_state['current_price'] = initial_current_price
-            print(f"Set reference price to initial current market price: {initial_current_price}")
+            print(f"Set base price to initial current market price: {initial_current_price}")
         else:
             # If initial price fetch fails, use a default value
             default_price = 100  # Default fallback
-            trading_state['reference_price'] = default_price  # Use reference price for laddering
+            trading_state['base_price'] = default_price
             trading_state['current_price'] = default_price
-            print(f"Using default reference price: {default_price}")
+            print(f"Using default base price: {default_price}")
     except Exception as e:
         print(f"Error getting initial price: {e}")
         default_price = 100  # Default fallback
-        trading_state['reference_price'] = default_price  # Use reference price for laddering
+        trading_state['base_price'] = default_price
         trading_state['current_price'] = default_price
-
-    # Keep track of the price at which the last action was taken
-    last_action_price = None
 
     while trading_state['is_running']:
         try:
@@ -408,24 +358,20 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
             if price_response["success"]:
                 current_price = price_response["price"]
                 trading_state['current_price'] = current_price
-                # Update the reference price in the trading state (for laddering display)
-                trading_state['dynamic_base_price'] = trading_state['reference_price']  # Keep this for UI display
-                print(f"Got price: {current_price} for token {selected_token}, reference: {trading_state['reference_price']}")
+                # Update the dynamic base price in the trading state (for UI display)
+                trading_state['dynamic_base_price'] = trading_state['base_price']  # Keep this for UI display
+                print(f"Got price: {current_price} for token {selected_token}, base price: {trading_state['base_price']}")
             else:
                 print(f"Failed to get price for main pair: {price_response.get('message', 'Unknown error')}")
 
-                # For tokens like Franklin that don't have price data in Jupiter,
+                # For tokens that don't have price data in Jupiter,
                 # we need to handle this case properly. We can either:
                 # 1. Skip this iteration and wait for price availability
-                # 2. Use a fallback mechanism
                 # Since we can't trade what we can't price, we'll log the issue and continue
                 print(f"No price available for token: {selected_token}, skipping this iteration")
-                # Don't set a placeholder price - leave current_price as None or keep previous value
                 # Use previous price if available, otherwise skip
                 if trading_state['current_price'] is not None:
                     current_price = trading_state['current_price']  # Keep previous price
-                    # Update the trading_state but skip the trading logic
-                    trading_state['current_price'] = current_price
                 else:
                     time.sleep(5)  # Wait before next iteration
                     continue  # Skip to the next iteration if no previous price
@@ -435,188 +381,103 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                 time.sleep(5)  # Wait before next iteration
                 continue  # Skip trading logic if price is invalid
 
-            # IMPLEMENT LADDERING LOGIC: Each transaction updates reference price for next transaction
-            # Reference price gets updated after each buy/sell to the execution price
-            action_taken = False
-            # Create a copy of the part tracking to preserve original values before any updates
-            part_tracking = list(trading_state['part_tracking'])  # Create a shallow copy
-            part_size = trading_state['part_size']
-            reference_price = trading_state['reference_price']  # Use reference price for laddering effect
+            # Get current base price for comparison
+            current_base_price = trading_state['base_price']
 
-            # Calculate thresholds based on the current reference price
-            sell_high_threshold = reference_price * (1 + up_percentage / 100)
-            sell_low_threshold = reference_price * (1 - down_percentage / 100)
+            # Calculate thresholds based on the current base price
+            sell_threshold = current_base_price * (1 + up_percentage / 100)
+            buy_threshold = current_base_price * (1 - down_percentage / 100)
 
-            # Determine if we should engage in trading based on current price vs reference thresholds
-            should_trade = (current_price >= sell_high_threshold or current_price <= sell_low_threshold)
+            # Determine if we should buy or sell based on current price vs thresholds
+            should_buy = current_price <= buy_threshold and trading_state['consecutive_buys'] < parts
+            should_sell = current_price >= sell_threshold and trading_state['consecutive_sells'] < parts
 
-            if should_trade:
-                part_to_process = None
-                should_buy_part = False  # False = sell, True = buy
+            # Execute buy/sell based on conditions - note that we can switch between buy and sell at any time
+            if should_buy:
+                # BUY operation
+                simulate_buy(current_price, selected_token, part_size)
+                trading_state['last_action'] = 'buy'
 
-                # Use the reference price (instead of dynamic base) for laddering decisions
-                if current_price >= sell_high_threshold:
-                    # PRICE RISING - Look for sell opportunities with proper laddering logic
-                    # 1. Look for parts currently held to sell (in reverse order - highest indices first) - parts were bought at lower prices
-                    # 2. If no held parts to sell, sell the next unprocessed part
+                # Update consecutive counters
+                trading_state['consecutive_buys'] += 1
+                trading_state['consecutive_sells'] = 0  # Reset consecutive sells counter
 
-                    # Look for parts that were bought and are eligible for selling (at higher prices)
-                    for i in range(len(part_tracking)-1, -1, -1):
-                        if part_tracking[i] > 0:  # This part was bought at some price
-                            buy_price = part_tracking[i]
-                            sell_threshold = buy_price * (1 + up_percentage / 100)
-                            if current_price >= sell_threshold:
-                                part_to_process = i
-                                should_buy_part = False  # SELL this part
-                                break
-                    if part_to_process is None:
-                        # No parts to sell, so sell the next unprocessed part in sequence
-                        for i in range(len(part_tracking)):
-                            if part_tracking[i] == 0:  # This part hasn't been traded yet
-                                part_to_process = i
-                                should_buy_part = False  # SELL this unprocessed part
-                                break
-                elif current_price <= sell_low_threshold:
-                    # PRICE FALLING - Look for buy opportunities with proper laddering logic
-                    # 1. Look for parts that were previously sold to buy back (in reverse order - highest indices first)
-                    # 2. If no parts to buy back, buy the next unprocessed part in sequence
+                # Update base price to execution price
+                trading_state['base_price'] = current_price
 
-                    # Look for parts that were sold and are eligible for buyback (at lower prices)
-                    for i in range(len(part_tracking)-1, -1, -1):
-                        if part_tracking[i] < 0:  # This part was sold at some price
-                            sold_price = abs(part_tracking[i])
-                            buyback_threshold = sold_price * (1 - down_percentage / 100)
-                            if current_price <= buyback_threshold:
-                                part_to_process = i
-                                should_buy_part = True  # BUY back this part
-                                break
-                    if part_to_process is None:
-                        # No parts to buy back, so buy the next unprocessed part in sequence
-                        for i in range(len(part_tracking)):
-                            if part_tracking[i] == 0:  # This part hasn't been traded yet
-                                part_to_process = i
-                                should_buy_part = True  # BUY this unprocessed part
-                                break
+                # Update position and average purchase price
+                old_position_value = trading_state['position'] * trading_state['avg_purchase_price']
+                new_purchase_value = part_size * current_price
+                trading_state['position'] += part_size
+                if trading_state['position'] > 0:
+                    trading_state['avg_purchase_price'] = (old_position_value + new_purchase_value) / trading_state['position']
 
-                # Execute the operation if we found a part to process
-                if part_to_process is not None:
-                    # Record the action and update state
-                    if should_buy_part:
-                        # Buy this part
-                        simulate_buy(current_price, selected_token, part_size)
-                        trading_state['last_action'] = 'buy'
-                        # Mark this part as bought (store the price as positive)
-                        trading_state['part_tracking'][part_to_process] = current_price
+                print(f"[TRADING] BUY: Part {trading_state['consecutive_buys']} of {parts} bought at {current_price}. New base price: {trading_state['base_price']}")
 
-                        # FOR LADDERING: Only update reference for NEW transactions (not for counter-trades)
-                        # Capture the original value before we update the tracking array
-                        original_value_at_start = part_tracking[part_to_process]
-                        print(f"[DEBUG] Processing part {part_to_process+1} BUY, original_value: {original_value_at_start}")
-
-                        # Update reference price only for NEW transactions (not counter-trades)
-                        is_new_transaction = (original_value_at_start == 0)
-
-                        if is_new_transaction:
-                            trading_state['reference_price'] = current_price  # Update reference for future thresholds
-                            print(f"[LADDERING-TRADING] NEW buy: Part {part_to_process+1} bought at {current_price}, updated reference: {trading_state['reference_price']}")
-                        else:
-                            print(f"[LADDERING-TRADING] Buyback: Part {part_to_process+1} bought back at {current_price}, reference unchanged: {trading_state['reference_price']}")
-
-                        # Update position and average purchase price
-                        old_position_value = trading_state['position'] * trading_state['avg_purchase_price']
-                        new_purchase_value = part_size * current_price
-                        trading_state['position'] += part_size
-                        if trading_state['position'] > 0:
-                            trading_state['avg_purchase_price'] = (old_position_value + new_purchase_value) / trading_state['position']
-
-                        action_taken = True
-                        print(f"[LADDERING-TRADING] Part {part_to_process+1} BOUGHT at {current_price}. New reference price: {trading_state['reference_price']}")
-                    else:
-                        # Sell this part
-                        simulate_sell(current_price, selected_token, part_size)
-                        trading_state['last_action'] = 'sell'
-                        # Mark this part as sold (store the price as negative)
-                        trading_state['part_tracking'][part_to_process] = -current_price
-
-                        # FOR LADDERING: Only update reference for NEW transactions (not for counter-trades)
-                        # Capture the original value before we update the tracking array
-                        original_value_at_start = part_tracking[part_to_process]
-                        print(f"[DEBUG] Processing part {part_to_process+1} SELL, original_value: {original_value_at_start}")
-
-                        # Update reference price only for NEW transactions (not counter-trades)
-                        is_new_transaction = (original_value_at_start == 0)
-
-                        if is_new_transaction:
-                            trading_state['reference_price'] = current_price  # Update reference for future thresholds
-                            print(f"[LADDERING-TRADING] NEW sell: Part {part_to_process+1} sold at {current_price}, updated reference: {trading_state['reference_price']}")
-                        else:
-                            print(f"[LADDERING-TRADING] Sellback: Part {part_to_process+1} sold back at {current_price}, reference unchanged: {trading_state['reference_price']}")
-
-                        # Update profit and position
-                        # Calculate profit from this specific part based on when it was acquired
-                        original_value = part_tracking[part_to_process]  # Use the original value from beginning of iteration
-                        if original_value < 0:  # This part was previously sold and is now being bought back
-                            # Calculate profit based on the previous sell and current buyback price
-                            previous_sell_price = abs(original_value)
-                            profit_per_token = previous_sell_price - current_price  # Profit is previous sell price minus current buy price
-                        elif original_value > 0:  # This part was bought previously and is now being sold
-                            # Calculate profit based on the previous buy and current sell price
-                            original_buy_price = original_value
-                            profit_per_token = current_price - original_buy_price
-                        else:  # This was an unprocessed part being sold initially
-                            # Use the reference price as the cost basis for the initial sale
-                            profit_per_token = current_price - trading_state['reference_price']  # Use the old reference price before updating it
-
-                        total_profit_from_part = profit_per_token * part_size
-                        trading_state['total_profit'] += total_profit_from_part
-
-                        # Reduce position when selling
-                        trading_state['position'] -= min(part_size, trading_state['position'])
-                        if trading_state['position'] <= 0:
-                            trading_state['position'] = 0
-                            trading_state['avg_purchase_price'] = 0
-
-                        action_taken = True
-                        print(f"[LADDERING-TRADING] Part {part_to_process+1} SOLD at {current_price}. New reference price: {trading_state['reference_price']}, current_total_profit: {trading_state['total_profit']}")
-
-            # Log action if taken
-            if action_taken:
+                # Record transaction
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                action = trading_state['last_action']
-                price = current_price
-
-                # Calculate profit/loss for this transaction
-                transaction_pnl = None
-                current_part_size = trading_state['part_size']
-
-                if action == 'sell':
-                    # For sell, calculate profit from the price at which we bought this part
-                    original_price = abs(part_tracking[part_to_process]) if part_tracking[part_to_process] < 0 else price
-                    pnl_per_token = price - original_price
-                    # Total P&L for the sold amount
-                    transaction_pnl = pnl_per_token * current_part_size
-                elif action == 'buy':
-                    # For buy, P&L is not calculated until the part is sold again
-                    transaction_pnl = None
-
-                # Prepare transaction record
                 tx_record = {
                     'timestamp': timestamp,
-                    'action': action,
+                    'action': 'buy',
                     'token': selected_token,
-                    'token_symbol': get_token_symbol(selected_token),  # Include the token symbol for display
-                    'price': price,
-                    'amount': current_part_size,  # Use part size for both buy and sell
-                    'base_price_at_execution': trading_state['reference_price'],  # Use the laddering reference price at time of execution
-                    'pnl': transaction_pnl,  # Record profit/loss for this transaction
-                    'total_parts': len(part_tracking),  # Record total parts
-                    'execution_price': price  # Record the price at which this part was traded
+                    'token_symbol': get_token_symbol(selected_token),
+                    'price': current_price,
+                    'amount': part_size,
+                    'base_price_at_execution': current_base_price,
+                    'pnl': None,  # No P&L for buy transactions
+                    'total_parts': parts,
+                    'part_number': trading_state['consecutive_buys'],
+                    'execution_price': current_price
                 }
 
-                # Add part number for both buy and sell operations as both are part of the system
-                tx_record['part_number'] = part_to_process + 1  # 1-indexed part number
-                tx_record['original_price'] = abs(part_tracking[part_to_process]) if part_tracking[part_to_process] != 0 else price  # Store the original price for reference
-                tx_record['part_status_before'] = part_tracking[part_to_process]  # Store the status before the transaction
+                trading_state['transaction_history'].append(tx_record)
+
+                # Keep only last 20 transactions
+                if len(trading_state['transaction_history']) > 20:
+                    trading_state['transaction_history'] = trading_state['transaction_history'][-20:]
+
+            elif should_sell:
+                # SELL operation
+                simulate_sell(current_price, selected_token, part_size)
+                trading_state['last_action'] = 'sell'
+
+                # Update consecutive counters
+                trading_state['consecutive_sells'] += 1
+                trading_state['consecutive_buys'] = 0  # Reset consecutive buys counter
+
+                # Update base price to execution price
+                trading_state['base_price'] = current_price
+
+                # Calculate profit from this sell
+                # In a real system, we'd track the purchase price for each part, but in this simplified system:
+                # profit per token = sell price - base price at time of sell
+                profit_per_token = current_price - current_base_price
+                total_profit = profit_per_token * part_size
+                trading_state['total_profit'] += total_profit
+
+                # Reduce position when selling
+                trading_state['position'] -= min(part_size, trading_state['position'])
+                if trading_state['position'] <= 0:
+                    trading_state['position'] = 0
+                    trading_state['avg_purchase_price'] = 0
+
+                print(f"[TRADING] SELL: Part {trading_state['consecutive_sells']} of {parts} sold at {current_price}. New base price: {trading_state['base_price']}, Total profit: {trading_state['total_profit']}")
+
+                # Record transaction
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                tx_record = {
+                    'timestamp': timestamp,
+                    'action': 'sell',
+                    'token': selected_token,
+                    'token_symbol': get_token_symbol(selected_token),
+                    'price': current_price,
+                    'amount': part_size,
+                    'base_price_at_execution': current_base_price,
+                    'pnl': total_profit,  # P&L for sell transactions
+                    'total_parts': parts,
+                    'part_number': trading_state['consecutive_sells'],
+                    'execution_price': current_price
+                }
 
                 trading_state['transaction_history'].append(tx_record)
 
