@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import requests
 import json
+# Updated trading algorithm implementation
 try:
     from solana.publickey import PublicKey
     from solana.rpc.api import Client
