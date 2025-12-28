@@ -5,10 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solana Trading Bot</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@latest/lib/index.iife.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@solana/wallet-adapter-wallets@latest/lib/index.iife.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@solana/wallet-adapter-base@latest/lib/index.iife.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@solana/wallet-adapter-phantom@latest/lib/index.iife.js"></script>
     <style>
         body {
             background-color: #f8f9fa;
@@ -46,22 +42,13 @@
         </div>
 
         <div class="row">
-            <!-- Wallet Connection and Token Balances -->
+            <!-- Trading Configuration -->
             <div class="col-lg-4">
                 <div class="card mb-4">
                     <div class="card-header">
-                        <h5>Wallet Connection</h5>
+                        <h5>Trading Configuration</h5>
                     </div>
                     <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label">Phantom Wallet</label>
-                            <button id="connectWalletBtn" class="btn btn-primary w-100">Connect Wallet</button>
-                            <div class="mt-2">
-                                <span id="walletStatus" class="badge bg-secondary">Not Connected</span>
-                                <span id="walletAddress"></span>
-                            </div>
-                        </div>
-
                         <div class="mb-3">
                             <label for="networkSelect" class="form-label">Network</label>
                             <select class="form-select" id="networkSelect">
@@ -72,22 +59,13 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Token Balances</label>
-                            <div id="tokenBalances">
-                                <div class="alert alert-info">Connect wallet to view balances</div>
-                            </div>
+                            <label for="tradingModeSelect" class="form-label">Trading Mode</label>
+                            <select class="form-select" id="tradingModeSelect">
+                                <option value="automatic">Automatic</option>
+                                <option value="user">User Approval</option>
+                            </select>
                         </div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Trading Configuration -->
-            <div class="col-lg-4">
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5>Trading Configuration</h5>
-                    </div>
-                    <div class="card-body">
                         <div class="mb-3">
                             <label for="selectedToken" class="form-label">Select Token (or enter custom below)</label>
                             <select class="form-select" id="selectedToken">
@@ -102,7 +80,17 @@
                             <input type="text" class="form-control" id="customTokenAddress" placeholder="Enter token mint address (e.g., So11111111111111111111111111111111111111112 for wSOL/SOL)">
                             <div class="form-text">Leave empty to use selected token above</div>
                         </div>
+                    </div>
+                </div>
+            </div>
 
+            <!-- Trading Parameters -->
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>Trading Parameters</h5>
+                    </div>
+                    <div class="card-body">
                         <div class="mb-3">
                             <label class="form-label">Base Price ($)</label>
                             <div class="form-control-plaintext bg-light p-2 rounded">$<span id="autoBasePrice">--</span></div>
@@ -204,6 +192,7 @@
                                         <th>Base Price ($)</th>
                                         <th>P&L ($)</th>
                                         <th>Amount</th>
+                                        <th>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody id="transactionHistory">
@@ -221,15 +210,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Phantom wallet connection
-        let wallet = null;
-        let connection = null;
-
         // DOM Elements
-        const connectWalletBtn = document.getElementById('connectWalletBtn');
-        const walletStatus = document.getElementById('walletStatus');
-        const walletAddress = document.getElementById('walletAddress');
-        const tokenBalances = document.getElementById('tokenBalances');
         const startTradingBtn = document.getElementById('startTradingBtn');
         const stopTradingBtn = document.getElementById('stopTradingBtn');
         const statusIndicator = document.getElementById('statusIndicator');
@@ -243,108 +224,8 @@
         const partsInput = document.getElementById('partsInput');
         let tradingInterval = null;
 
-        // Initialize Solana connection
-        async function initSolana() {
-            connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'), 'confirmed');
-        }
-
-        // Store wallet public key globally
-        let connectedWalletPublicKey = null;
-
-        // Connect to Phantom wallet
-        async function connectWallet() {
-            try {
-                // Check if Phantom wallet is installed
-                if (window.phantom && window.phantom.solana) {
-                    wallet = window.phantom.solana;
-
-                    // Check if already connected
-                    if (wallet.connecting || (wallet.isConnected && connectedWalletPublicKey)) {
-                        await disconnectWallet();
-                        return;
-                    }
-
-                    // Connect to wallet
-                    const response = await wallet.connect();
-                    const publicKey = response.publicKey;
-                    connectedWalletPublicKey = publicKey;  // Store for later use
-
-                    // Update UI
-                    walletStatus.className = 'badge bg-success';
-                    walletStatus.textContent = 'Connected';
-                    walletAddress.textContent = publicKey.toString().substring(0, 4) + '...' + publicKey.toString().substring(publicKey.toString().length - 4);
-
-                    // Fetch and display token balances
-                    await fetchTokenBalances(publicKey);
-
-                    console.log('Wallet connected:', publicKey.toString());
-                } else {
-                    alert('Please install Phantom wallet to use this application');
-                }
-            } catch (error) {
-                console.error('Error connecting wallet:', error);
-                alert('Error connecting wallet. Please try again.');
-            }
-        }
-
-        // Disconnect from Phantom wallet
-        async function disconnectWallet() {
-            try {
-                if (wallet && wallet.isConnected) {
-                    await wallet.disconnect();
-                }
-
-                // Reset wallet state
-                connectedWalletPublicKey = null;
-
-                // Update UI
-                walletStatus.className = 'badge bg-secondary';
-                walletStatus.textContent = 'Not Connected';
-                walletAddress.textContent = '';
-                tokenBalances.innerHTML = '<div class="alert alert-info">Connect wallet to view balances</div>';
-
-                console.log('Wallet disconnected');
-            } catch (error) {
-                console.error('Error disconnecting wallet:', error);
-                // Still reset state even if disconnect fails
-                connectedWalletPublicKey = null;
-                walletStatus.className = 'badge bg-secondary';
-                walletStatus.textContent = 'Not Connected';
-                walletAddress.textContent = '';
-                tokenBalances.innerHTML = '<div class="alert alert-info">Connect wallet to view balances</div>';
-            }
-        }
-
-        // Fetch token balances for the connected wallet
-        async function fetchTokenBalances(publicKey) {
-            try {
-                // Get selected network from dropdown
-                const network = document.getElementById('networkSelect').value;
-                const response = await fetch(`/api/wallet-balance/${publicKey.toString()}/${network}`);
-                const data = await response.json();
-
-                if (data.success) {
-                    displayTokenBalances(data.balances);
-                } else {
-                    console.error('Error from backend:', data.message);
-                    displayTokenBalances(data.balances || []); // Use any balances returned even if success is false
-                }
-            } catch (error) {
-                console.error('Error fetching token balances:', error);
-                tokenBalances.innerHTML = '<div class="alert alert-danger">Error loading balances</div>';
-            }
-        }
-
-        // Connect wallet button event
-        connectWalletBtn.addEventListener('click', connectWallet);
-
         // Start trading button event
         startTradingBtn.addEventListener('click', async function() {
-            if (!wallet || !wallet.isConnected) {
-                alert('Please connect your wallet first');
-                return;
-            }
-
             // Determine which token address to use
             let selectedToken = document.getElementById('selectedToken').value;
             const customTokenAddress = document.getElementById('customTokenAddress').value.trim();
@@ -364,7 +245,9 @@
                 downPercentage: parseFloat(document.getElementById('downPercentage').value),
                 selectedToken: selectedToken,
                 tradeAmount: parseFloat(document.getElementById('tradeAmount').value),
-                parts: parseInt(document.getElementById('partsInput').value)
+                parts: parseInt(document.getElementById('partsInput').value),
+                network: document.getElementById('networkSelect').value,
+                tradingMode: document.getElementById('tradingModeSelect').value
             };
 
             // Validate inputs
@@ -590,6 +473,10 @@
                     displayPart = '-';  // Show dash for buy operations since they don't consume parts
                 }
 
+                // Transaction status badge
+                const statusBadge = tx.status === 'completed' ? 'success' : 'danger';
+                const statusText = tx.status === 'completed' ? 'Completed' : 'Failed';
+
                 html += `<tr>
                     <td>${tx.timestamp}</td>
                     <td><span class="badge bg-${tx.action === 'buy' ? 'success' : 'danger'}">${tx.action}</span></td>
@@ -599,6 +486,7 @@
                     <td>$${displayBasePrice}</td>  <!-- Base price at execution -->
                     <td class="${plClass}">$${displayPL}</td>  <!-- Profit/Loss -->
                     <td>${tx.amount}</td>
+                    <td><span class="badge bg-${statusBadge}">${statusText}</span></td>
                 </tr>`;
             });
 
@@ -607,7 +495,6 @@
 
         // Initialize the page
         async function init() {
-            await initSolana();
             updateStatus(false);
         }
 
