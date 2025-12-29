@@ -10,6 +10,7 @@ try:
     from solana.rpc.api import Client
     from solana.transaction import Transaction
     from solana.keypair import Keypair
+    from spl.token.constants import TOKEN_PROGRAM_ID
 except ImportError:
     # For compatibility if solana library structure changes
     try:
@@ -17,6 +18,7 @@ except ImportError:
         from solana.rpc.api import Client
         from solana.transaction import Transaction
         from solders.keypair import Keypair
+        from spl.token.constants import TOKEN_PROGRAM_ID
     except ImportError:
         # Mock objects for testing if libraries not available
         class PublicKey:
@@ -28,6 +30,8 @@ except ImportError:
             pass
         class Keypair:
             pass
+        # Define a default TOKEN_PROGRAM_ID for fallback
+        TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 
 # Load environment variables
 load_dotenv()
@@ -96,20 +100,19 @@ def wallet_balance():
         from solana.rpc.types import TokenAccountOpts
 
         # Create RPC clients
-        public_rpc = Client("https://api.mainnet-beta.solana.com")
         helius_api_key = os.getenv("HELIUS_API_KEY")
         if helius_api_key:
-            helius_rpc = Client(f"https://mainnet.helius-rpc.com/?api-key={helius_api_key}")
+            client = Client(f"https://mainnet.helius-rpc.com/?api-key={helius_api_key}")
         else:
-            helius_rpc = public_rpc  # Fallback to public RPC if no Helius key
+            client = Client("https://api.mainnet-beta.solana.com")  # Fallback to public RPC
 
         wallet_pubkey = PublicKey.from_string(WALLET_PUBLIC_KEY)
 
         balances = []
 
-        # SOL
-        sol_balance_resp = public_rpc.get_balance(wallet_pubkey)
-        sol_balance = sol_balance_resp.value / 1_000_000_000
+        # A) SOL balance (native)
+        sol_resp = client.get_balance(wallet_pubkey)
+        sol_balance = sol_resp.value / 1_000_000_000
         balances.append({
             "token": "SOL",
             "symbol": "SOL",
@@ -120,46 +123,49 @@ def wallet_balance():
             "type": "native"
         })
 
-        # SPL tokens
-        token_program_id = PublicKey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
-        opts = TokenAccountOpts(
-            program_id=token_program_id,
-            encoding="jsonParsed"
-        )
-
-        resp = public_rpc.get_token_accounts_by_owner(
+        # B) SPL token balances (USDC, wSOL, others)
+        resp = client.get_token_accounts_by_owner(
             wallet_pubkey,
-            opts
+            TokenAccountOpts(program_id=TOKEN_PROGRAM_ID)
         )
 
-        for acct in resp.value:
-            token_account = acct.pubkey
+        tokens = []
 
-            bal_resp = public_rpc.get_token_account_balance(token_account)
-            bal = bal_resp.value
-            info = acct.account.data["parsed"]["info"]
+        for acc in resp.value:
+            info = acc.account.data.parsed["info"]
+            mint = info["mint"]
+            amount = int(info["tokenAmount"]["amount"])
+            decimals = int(info["tokenAmount"]["decimals"])
+
+            balance = amount / (10 ** decimals)
+
+            # Skip zero balances
+            if balance == 0:
+                continue
 
             # Determine token symbol based on mint address
-            mint_address = info["mint"]
-            if mint_address == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v":  # USDC
+            if mint == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v":  # USDC
                 token_symbol = "USDC"
                 token_name = "USD Coin"
-            elif mint_address == "So11111111111111111111111111111111111111112":  # wSOL
+            elif mint == "So11111111111111111111111111111111111111112":  # wSOL
                 token_symbol = "wSOL"
                 token_name = "Wrapped Solana"
             else:
-                token_symbol = TOKEN_INFO.get(mint_address, {}).get("symbol", "UNKNOWN")
-                token_name = TOKEN_INFO.get(mint_address, {}).get("name", "Unknown Token")
+                token_symbol = TOKEN_INFO.get(mint, {}).get("symbol", "UNKNOWN")
+                token_name = TOKEN_INFO.get(mint, {}).get("name", "Unknown Token")
 
-            balances.append({
+            tokens.append({
                 "token": token_symbol,
                 "symbol": token_symbol,
                 "name": token_name,
-                "balance": float(bal.uiAmount or 0),
-                "mint": mint_address,
-                "decimals": bal.decimals,
+                "mint": mint,
+                "balance": balance,
+                "decimals": decimals,
                 "type": "spl-token"
             })
+
+        # Add SPL tokens to balances
+        balances.extend(tokens)
 
         return jsonify({
             "success": True,
