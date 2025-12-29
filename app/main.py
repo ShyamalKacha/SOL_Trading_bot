@@ -91,16 +91,13 @@ def index():
 
 @app.route('/api/wallet-balance', methods=["GET"])
 def wallet_balance():
-    """Function to get wallet token balances using Helius getAssetsByOwner"""
     try:
-        import json
-        helius_api_key = os.getenv('HELIUS_API_KEY')
+        helius_api_key = os.getenv("HELIUS_API_KEY")
         if not helius_api_key:
             raise Exception("HELIUS_API_KEY not set")
 
-        wallet_address = WALLET_PUBLIC_KEY  # already derived from private key
+        wallet_address = WALLET_PUBLIC_KEY
 
-        # Use Helius RPC endpoint
         url = f"https://mainnet.helius-rpc.com/?api-key={helius_api_key}"
 
         payload = {
@@ -110,10 +107,7 @@ def wallet_balance():
             "params": {
                 "ownerAddress": wallet_address,
                 "page": 1,
-                "limit": 1000,
-                "displayOptions": {
-                    "showFungible": True
-                }
+                "limit": 1000
             }
         }
 
@@ -121,42 +115,37 @@ def wallet_balance():
         r.raise_for_status()
         data = r.json()
 
-        # Debug log to see the raw response
-        print("Helius raw response:", json.dumps(data, indent=2))
-
-        items = data.get("result", {}).get("items", [])
-        native_balance = data.get("result", {}).get("nativeBalance", 0)
+        result = data.get("result", {})
 
         balances = []
 
-        # 1️⃣ ADD SOL FIRST (from nativeBalance)
-        if native_balance and native_balance > 0:
-            balances.append({
-                "token": "SOL",
-                "name": "Solana",
-                "balance": native_balance / 1e9,
-                "mint": "So11111111111111111111111111111111111111112",
-                "decimals": 9
-            })
+        # 1️⃣ Native SOL (ALWAYS include)
+        native_balance = result.get("nativeBalance", 0)
+        balances.append({
+            "token": "SOL",
+            "symbol": "SOL",
+            "name": "Solana",
+            "balance": native_balance / 1e9,
+            "mint": "So11111111111111111111111111111111111111112",
+            "decimals": 9,
+            "type": "native"
+        })
 
-        # 2️⃣ ADD ALL SPL TOKENS
-        for item in items:
-            if item.get("interface") != "FungibleToken":
-                continue
+        # 2️⃣ EVERYTHING else (NO FILTERS)
+        for item in result.get("items", []):
+            token_info = item.get("token_info", {}) or {}
 
-            token_info = item.get("token_info", {})
             raw_balance = token_info.get("balance", 0)
             decimals = token_info.get("decimals", 0)
 
-            if raw_balance <= 0:
-                continue
-
             balances.append({
-                "token": token_info.get("symbol", "UNKNOWN"),
-                "name": token_info.get("name", ""),
-                "balance": raw_balance / (10 ** decimals),
+                "token": token_info.get("symbol") or "UNKNOWN",
+                "symbol": token_info.get("symbol") or "UNKNOWN",
+                "name": token_info.get("name") or "Unknown Token",
+                "balance": raw_balance / (10 ** decimals) if decimals else raw_balance,
                 "mint": item.get("id"),
-                "decimals": decimals
+                "decimals": decimals,
+                "type": item.get("interface", "unknown")
             })
 
         return jsonify({
