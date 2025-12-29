@@ -237,20 +237,18 @@ def get_price():
     jupiter_api_key = os.getenv('JUPITER_API_KEY')
 
     headers = {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Accept": "application/json"
+        "x-api-key": jupiter_api_key
     }
-
-    # Add API key to headers if available
-    if jupiter_api_key:
-        headers["x-jupiter-api-key"] = jupiter_api_key
 
     params = {
         'inputMint': input_mint,
         'outputMint': output_mint,
-        'amount': amount,
-        'slippageBps': 50  # 0.5% slippage
+        'amount': str(amount),  # Convert to string as required
+        'swapMode': 'ExactIn',
+        'slippageBps': 50,
+        'restrictIntermediateTokens': 'true',
+        'maxAccounts': 64,
+        'instructionVersion': 'V1'
     }
 
     try:
@@ -261,13 +259,15 @@ def get_price():
             if 'outAmount' in quote_data and 'inAmount' in quote_data:
                 out_amount = int(quote_data['outAmount'])
                 in_amount = int(quote_data['inAmount'])
-                # Price is output amount per input amount
-                # Only return success if we have meaningful data
-                if out_amount > 0 and in_amount > 0:
-                    price = out_amount / in_amount
-                    return jsonify({"price": price, "success": True})
-                else:
-                    return jsonify({"price": 0.0, "success": False, "message": "Invalid quote amounts returned"})
+
+                # Price calculation with proper decimal adjustment
+                if in_amount == 0:
+                    return jsonify({"price": 0.0, "success": False, "message": "Input amount is zero"})
+
+                # SOL (9 decimals) → USDC (6 decimals) price calculation
+                price = (out_amount / 10**6) / (in_amount / 10**9)
+
+                return jsonify({"price": price, "success": True})
             else:
                 # If essential data is missing, return error
                 return jsonify({"price": 0.0, "success": False, "message": f"Quote data missing: {quote_data}"})
@@ -619,25 +619,23 @@ def get_jupiter_price_direct(input_mint, output_mint, amount):
 
     # Set appropriate headers for Jupiter API
     headers = {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Accept": "application/json"
+        "x-api-key": jupiter_api_key
     }
 
-    # Add API key to headers if available
-    if jupiter_api_key:
-        headers["x-jupiter-api-key"] = jupiter_api_key
-
-    # First try the original pair
+    # First try the original pair with correct parameters
     params = {
         'inputMint': input_mint,
         'outputMint': output_mint,
-        'amount': amount,
-        'slippageBps': 50  # 0.5% slippage
+        'amount': str(amount),  # Convert to string as required
+        'swapMode': 'ExactIn',
+        'slippageBps': 50,
+        'restrictIntermediateTokens': 'true',
+        'maxAccounts': 64,
+        'instructionVersion': 'V1'
     }
 
     try:
-        # Make the request with more options to mimic a browser request
+        # Make the request with correct parameters
         response = requests.get(
             JUPITER_QUOTE_API,
             params=params,
@@ -653,136 +651,21 @@ def get_jupiter_price_direct(input_mint, output_mint, amount):
             if 'outAmount' in quote_data and 'inAmount' in quote_data:
                 out_amount = int(quote_data['outAmount'])
                 in_amount = int(quote_data['inAmount'])
-                # Calculate price accounting for decimals
-                # For SOL/USDC pricing, we need to account for decimal differences
-                # SOL has 9 decimals, USDC has 6 decimals (3 decimal difference)
-                # If we're asking for SOL -> USDC, we might need to adjust for decimals
 
-                # Price is output amount per input amount
-                # Only return success if we have meaningful data
-                if out_amount > 0 and in_amount > 0:
-                    # Raw calculation before decimal adjustment
-                    raw_price = out_amount / in_amount
+                # Price calculation with proper decimal adjustment
+                if in_amount == 0:
+                    return {"price": 0.0, "success": False, "message": "Input amount is zero"}
 
-                    # Apply proper decimal adjustment
-                    # When dealing with SOL (9 decimals) and USDC (6 decimals),
-                    # Jupiter returns raw amounts but for pricing we often need to adjust
-                    # The difference in decimals is 9-6 = 3 decimals = factor of 1000
+                # SOL (9 decimals) → USDC (6 decimals) price calculation
+                price = (out_amount / 10**6) / (in_amount / 10**9)
 
-                    if (input_mint == "So11111111111111111111111111111111111111112" and  # SOL
-                        output_mint == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"):   # USDC
-                        # SOL -> USDC: Adjust for decimal difference (SOL: 9, USDC: 6, diff: 3)
-                        # If Jupiter quotes 1 SOL (in lamports) -> X USDC (in raw units)
-                        # The proper price in USD is X / 1000, but we need to consider what the raw ratio represents
-                        # Actually, if Jupiter says for 1,000,000,000 lamports I get 133,000,000 USDC units
-                        # That means 1 SOL gets me 133 USDC, so price should be 133
-                        # The raw calculation gives 133,000,000 / 1,000,000,000 = 0.133
-                        # So I need to multiply by 1000 to correct for the decimal difference
-                        price = raw_price * (10 ** (9 - 6))  # 10^3 = 1000 factor
-                    elif (input_mint == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" and  # USDC
-                          output_mint == "So11111111111111111111111111111111111111112"):  # SOL
-                        # USDC -> SOL: Adjust for decimal difference
-                        # If Jupiter says 1 USDC gets X SOL, the price needs adjustment
-                        price = raw_price / (10 ** (9 - 6))  # Invert the factor
-                    else:
-                        # For other tokens, use original calculation (may need adjustment later)
-                        price = raw_price
-
-                    # For debugging: print what tokens and the calculated price
-                    print(f"Decimal-adjusted calculation: {input_mint} -> {output_mint}, "
-                          f"raw_price: {raw_price}, adjusted_price: {price}")
-                    return {"price": price, "success": True}
-                else:
-                    print(f"Invalid amounts received - out: {out_amount}, in: {in_amount}")
+                return {"price": price, "success": True, "quote_data": quote_data}
             else:
-                print(f"Missing quote data in response: {quote_data}")
-
-        # If first attempt failed, try reverse - if we want token price in USDC but token->USDC doesn't work,
-        # try USDC->token and invert the price
-        if input_mint != output_mint:  # Don't try if both mints are the same
-            reverse_params = {
-                'inputMint': output_mint,
-                'outputMint': input_mint,
-                'amount': amount,
-                'slippageBps': 50
-            }
-
-            rev_response = requests.get(
-                JUPITER_QUOTE_API,
-                params=reverse_params,
-                timeout=15,
-                headers=headers,
-                verify=True,
-                allow_redirects=True
-            )
-
-            if rev_response.status_code == 200:
-                rev_quote_data = rev_response.json()
-                if 'outAmount' in rev_quote_data and 'inAmount' in rev_quote_data:
-                    out_amount = int(rev_quote_data['outAmount'])
-                    in_amount = int(rev_quote_data['inAmount'])
-                    if out_amount > 0 and in_amount > 0:
-                        # Invert the price for the reverse direction
-                        price = in_amount / out_amount
-                        return {"price": price, "success": True}
-
-        # If both attempts failed, try with SOL as the intermediate currency
-        # For example, if token->USDC doesn't work, try token->SOL->USDC
-        if input_mint != "So11111111111111111111111111111111111111112" and output_mint != "So11111111111111111111111111111111111111112":
-            # Try token -> SOL first
-            sol_params = {
-                'inputMint': input_mint,
-                'outputMint': "So11111111111111111111111111111111111111112",  # SOL
-                'amount': amount,
-                'slippageBps': 50
-            }
-
-            sol_response = requests.get(
-                JUPITER_QUOTE_API,
-                params=sol_params,
-                timeout=15,
-                headers=headers,
-                verify=True,
-                allow_redirects=True
-            )
-
-            if sol_response.status_code == 200:
-                sol_quote_data = sol_response.json()
-                if 'outAmount' in sol_quote_data and 'inAmount' in sol_quote_data:
-                    sol_out_amount = int(sol_quote_data['outAmount'])
-                    sol_in_amount = int(sol_quote_data['inAmount'])
-                    if sol_out_amount > 0 and sol_in_amount > 0:
-                        # Now get SOL -> USDC
-                        sol_to_usdc_params = {
-                            'inputMint': "So11111111111111111111111111111111111111112",  # SOL
-                            'outputMint': output_mint,  # USDC or other quote currency
-                            'amount': sol_out_amount,  # amount of SOL we expect to get
-                            'slippageBps': 50
-                        }
-
-                        sol_to_usdc_response = requests.get(
-                            JUPITER_QUOTE_API,
-                            params=sol_to_usdc_params,
-                            timeout=15,
-                            headers=headers,
-                            verify=True,
-                            allow_redirects=True
-                        )
-
-                        if sol_to_usdc_response.status_code == 200:
-                            usdc_quote_data = sol_to_usdc_response.json()
-                            if 'outAmount' in usdc_quote_data and 'inAmount' in usdc_quote_data:
-                                usdc_out_amount = int(usdc_quote_data['outAmount'])
-                                usdc_in_amount = int(usdc_quote_data['inAmount'])
-                                if usdc_out_amount > 0 and usdc_in_amount > 0:
-                                    # Calculate the final price through SOL intermediate
-                                    # From token -> SOL: sol_out_amount / sol_in_amount
-                                    # From SOL -> USDC: usdc_out_amount / usdc_in_amount
-                                    # So token -> USDC = (sol_out_amount / sol_in_amount) * (usdc_out_amount / usdc_in_amount)
-                                    price = (sol_out_amount / sol_in_amount) * (usdc_out_amount / usdc_in_amount)
-                                    return {"price": price, "success": True}
-
-        return {"price": 0.0, "success": False, "message": f"No price route found for {input_mint} -> {output_mint}"}
+                return {"price": 0.0, "success": False, "message": f"Quote data missing: {quote_data}"}
+        else:
+            # If the API returns an error status, try to provide more useful error info
+            error_text = response.text if response.text else f"HTTP {response.status_code}"
+            return {"price": 0.0, "success": False, "message": f"API Error: {response.status_code} - {error_text}"}
     except requests.exceptions.ConnectionError as e:
         print(f"ConnectionError: {e}")
         return {"price": 0.0, "success": False, "message": f"Connection error - unable to reach Jupiter API: {str(e)}"}
@@ -840,17 +723,18 @@ def execute_swap(input_mint, output_mint, amount, slippage_bps=50):
 
         # Get quote first
         quote_headers = {
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Accept": "application/json",
-            "x-jupiter-api-key": jupiter_api_key
+            "x-api-key": jupiter_api_key
         }
 
         quote_params = {
             'inputMint': input_mint,
             'outputMint': output_mint,
-            'amount': amount,
-            'slippageBps': slippage_bps
+            'amount': str(amount),  # Convert to string as required
+            'swapMode': 'ExactIn',
+            'slippageBps': slippage_bps,
+            'restrictIntermediateTokens': 'true',
+            'maxAccounts': 64,
+            'instructionVersion': 'V1'
         }
 
         quote_response = requests.get(JUPITER_QUOTE_API, params=quote_params, headers=quote_headers)
@@ -862,17 +746,21 @@ def execute_swap(input_mint, output_mint, amount, slippage_bps=50):
         # Prepare swap request
         swap_headers = {
             "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Accept": "application/json",
-            "x-jupiter-api-key": jupiter_api_key
+            "x-api-key": jupiter_api_key
         }
 
         swap_body = {
-            "quoteResponse": quote_data,
             "userPublicKey": user_public_key,
+            "quoteResponse": quote_data,
             "wrapAndUnwrapSol": True,
             "dynamicComputeUnitLimit": True,
-            "prioritizationFeeLamports": "auto"
+            "prioritizationFeeLamports": {
+                "priorityLevelWithMaxLamports": {
+                    "priorityLevel": "medium",
+                    "maxLamports": 100000,
+                    "global": False
+                }
+            }
         }
 
         # Get swap transaction
