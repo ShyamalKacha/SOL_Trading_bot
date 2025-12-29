@@ -67,6 +67,9 @@ TOKEN_INFO = {
     USDC_MINT: {"symbol": "USDC", "name": "USD Coin"},
 }
 
+# Get wallet public key from private key
+WALLET_PUBLIC_KEY = get_wallet_address()
+
 # Global variables to store trading state
 trading_state = {
     "is_running": False,
@@ -86,31 +89,112 @@ trading_state = {
 def index():
     return render_template('index.html', tokens=MOCK_TOKENS)
 
-@app.route('/api/wallet-balance')
-def get_wallet_balance_default():
-    """Default route for wallet balance - returns balance for the private key wallet"""
+@app.route('/api/wallet-balance', methods=["GET"])
+def wallet_balance():
+    """Function to get wallet token balances using Helius getAssetsByOwner"""
     try:
-        wallet_address = get_wallet_address()
-        if not wallet_address:
-            return jsonify({
-                "success": False,
-                "message": "Could not retrieve wallet address from private key",
-                "balances": []
+        helius_api_key = os.getenv('HELIUS_API_KEY')
+        if not helius_api_key:
+            raise Exception("HELIUS_API_KEY not set")
+
+        wallet_address = WALLET_PUBLIC_KEY  # already derived from private key
+
+        # Use Helius RPC endpoint
+        url = f"https://mainnet.helius-rpc.com/?api-key={helius_api_key}"
+
+        payload = {
+            "jsonrpc": "2.0",
+            "id": "get-assets",
+            "method": "getAssetsByOwner",
+            "params": {
+                "ownerAddress": wallet_address,
+                "page": 1,
+                "limit": 1000,
+                "displayOptions": {
+                    "showFungible": True
+                }
+            }
+        }
+
+        r = requests.post(url, json=payload, timeout=15)
+        r.raise_for_status()
+        data = r.json()
+
+        balances = []
+
+        for item in data.get("result", {}).get("items", []):
+            if item.get("interface") != "FungibleToken":
+                continue
+
+            token_info = item.get("token_info", {})
+            raw_balance = token_info.get("balance", 0)
+            decimals = token_info.get("decimals", 0)
+
+            if raw_balance == 0:
+                continue
+
+            balances.append({
+                "token": token_info.get("symbol", "UNKNOWN"),
+                "name": token_info.get("name", ""),
+                "balance": raw_balance / (10 ** decimals),
+                "mint": item.get("id"),
+                "decimals": decimals
             })
 
-        return get_wallet_balance(wallet_address, "mainnet")
-    except Exception as e:
-        print(f"Error in get_wallet_balance_default: {e}")
+        # Also get SOL balance separately
+        try:
+            sol_payload = {
+                "jsonrpc": "2.0",
+                "id": "get-balance",
+                "method": "getBalance",
+                "params": [wallet_address]
+            }
+
+            sol_response = requests.post(url, json=sol_payload, timeout=15)
+            sol_response.raise_for_status()
+            sol_data = sol_response.json()
+
+            if 'result' in sol_data and 'value' in sol_data['result']:
+                sol_lamports = sol_data['result']['value']
+                sol_balance = sol_lamports / 10**9  # Convert lamports to SOL
+
+                if sol_balance > 0:
+                    # Check if SOL is already in the balances list (it might be as wSOL)
+                    sol_exists = False
+                    for balance in balances:
+                        if balance['mint'] == "So11111111111111111111111111111111111111112":
+                            sol_exists = True
+                            break
+
+                    if not sol_exists:
+                        balances.append({
+                            "token": "SOL",
+                            "name": "Solana",
+                            "balance": sol_balance,
+                            "mint": "So11111111111111111111111111111111111111112",
+                            "decimals": 9
+                        })
+        except Exception as sol_error:
+            print(f"Error fetching SOL balance: {sol_error}")
+
         return jsonify({
-            "success": False,
-            "message": f"Error connecting to wallet: {str(e)}",
-            "balances": []
+            "success": True,
+            "balances": balances
         })
 
+    except Exception as e:
+        print("Wallet balance error:", e)
+        return jsonify({
+            "success": False,
+            "balances": [],
+            "message": str(e)
+        })
+
+# Keep the old endpoints for backward compatibility if needed
 @app.route('/api/wallet-balance/<wallet_address>')
 @app.route('/api/wallet-balance/<wallet_address>/<network>')
-def get_wallet_balance(wallet_address, network="mainnet"):
-    """Function to get real wallet token balances from Solana blockchain"""
+def get_wallet_balance_legacy(wallet_address, network="mainnet"):
+    """Legacy function to get real wallet token balances from Solana blockchain"""
     try:
         # Validate wallet address format (basic check)
         if len(wallet_address) < 32 or len(wallet_address) > 44:
