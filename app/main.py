@@ -116,21 +116,26 @@ def wallet_balance():
         r.raise_for_status()
         data = r.json()
 
+        # Debug log to see the raw response
+        import json
+        print("Helius raw response:", json.dumps(data, indent=2))
+
         result = data.get("result", {})
 
         balances = []
 
         # 1️⃣ Native SOL (ALWAYS include)
         native_balance = result.get("nativeBalance", 0)
-        balances.append({
-            "token": "SOL",
-            "symbol": "SOL",
-            "name": "Solana",
-            "balance": native_balance / 1e9,
-            "mint": "So11111111111111111111111111111111111111112",
-            "decimals": 9,
-            "type": "native"
-        })
+        if native_balance > 0:  # Only add SOL if there's a balance
+            balances.append({
+                "token": "SOL",
+                "symbol": "SOL",
+                "name": "Solana",
+                "balance": native_balance / 1e9,
+                "mint": "So11111111111111111111111111111111111111112",
+                "decimals": 9,
+                "type": "native"
+            })
 
         # 2️⃣ EVERYTHING else (NO FILTERS)
         for item in result.get("items", []):
@@ -143,14 +148,17 @@ def wallet_balance():
             token_symbol = token_info.get("symbol") or "UNKNOWN"
             token_name = token_info.get("name") or "Unknown Token"
 
-            # Check if this is a known token based on mint address
+            # Known token mappings
             mint_address = item.get("id")
-            if mint_address == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v":  # USDC
-                token_symbol = "USDC"
-                token_name = "USD Coin"
-            elif mint_address == "So11111111111111111111111111111111111111112":  # SOL
-                token_symbol = "SOL"
-                token_name = "Solana"
+            known_tokens = {
+                "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": ("USDC", "USD Coin"),
+                "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB": ("USDT", "Tether USD"),
+                "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm": ("USDC", "USD Coin (old)"),
+                "So11111111111111111111111111111111111111112": ("SOL", "Solana"),
+            }
+
+            if mint_address in known_tokens:
+                token_symbol, token_name = known_tokens[mint_address]
 
             balances.append({
                 "token": token_symbol,
