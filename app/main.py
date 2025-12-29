@@ -93,6 +93,8 @@ def index():
 @app.route('/api/wallet-balance', methods=["GET"])
 def wallet_balance():
     try:
+        from solana.rpc.types import TokenAccountOpts
+
         helius_api_key = os.getenv("HELIUS_API_KEY")
         if not helius_api_key:
             raise Exception("HELIUS_API_KEY not set")
@@ -118,9 +120,15 @@ def wallet_balance():
         })
 
         # 2️⃣ GET ALL SPL TOKENS (USDC, wSOL, ETC.)
+        token_program_id = PublicKey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+        opts = TokenAccountOpts(
+            program_id=token_program_id,
+            encoding="jsonParsed"
+        )
+
         resp = client.get_token_accounts_by_owner(
             wallet_pubkey,
-            {"programId": PublicKey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")}
+            opts
         )
 
         for acct in resp.value:
@@ -134,7 +142,7 @@ def wallet_balance():
                 "token": TOKEN_INFO.get(info["mint"], {}).get("symbol", info["mint"][:8] + "..."),
                 "symbol": TOKEN_INFO.get(info["mint"], {}).get("symbol", "UNKNOWN"),
                 "name": TOKEN_INFO.get(info["mint"], {}).get("name", "Unknown Token"),
-                "balance": float(bal.ui_amount),
+                "balance": float(bal.ui_amount or 0),
                 "mint": info["mint"],
                 "decimals": bal.decimals,
                 "type": "spl-token"
