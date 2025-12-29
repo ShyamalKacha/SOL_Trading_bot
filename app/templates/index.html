@@ -80,6 +80,13 @@
                             <input type="text" class="form-control" id="customTokenAddress" placeholder="Enter token mint address (e.g., So11111111111111111111111111111111111111112 for wSOL/SOL)">
                             <div class="form-text">Leave empty to use selected token above</div>
                         </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Token Balances</label>
+                            <div id="tokenBalances">
+                                <div class="alert alert-info">Loading balances...</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -493,9 +500,56 @@
             transactionHistory.innerHTML = html;
         }
 
+        // Function to display token balances
+        function displayTokenBalances(balances) {
+            const tokenBalancesDiv = document.getElementById('tokenBalances');
+
+            if (balances.length === 0) {
+                tokenBalancesDiv.innerHTML = '<div class="alert alert-info">No tokens found in wallet</div>';
+                return;
+            }
+
+            let html = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Token</th><th>Balance</th><th>Mint Address</th></tr></thead><tbody>';
+            balances.forEach(balance => {
+                html += `<tr>
+                    <td>
+                        <div>${balance.token}</div>
+                        <small class="text-muted">${balance.name || ''}</small>
+                    </td>
+                    <td class="text-end">${balance.balance ? balance.balance.toFixed(6) : '0.000000'}</td>
+                    <td><small>${balance.mint ? balance.mint.substring(0, 8) + '...' : ''}</small></td>
+                </tr>`;
+            });
+            html += '</tbody></table></div>';
+            tokenBalancesDiv.innerHTML = html;
+        }
+
+        // Function to fetch token balances
+        async function fetchTokenBalances() {
+            try {
+                const response = await fetch('/api/wallet-balance');
+                const data = await response.json();
+
+                if (data.success) {
+                    displayTokenBalances(data.balances);
+                } else {
+                    console.error('Error from backend:', data.message);
+                    displayTokenBalances(data.balances || []); // Use any balances returned even if success is false
+                }
+            } catch (error) {
+                console.error('Error fetching token balances:', error);
+                document.getElementById('tokenBalances').innerHTML = '<div class="alert alert-danger">Error loading balances</div>';
+            }
+        }
+
         // Initialize the page
         async function init() {
             updateStatus(false);
+            // Fetch token balances on page load
+            await fetchTokenBalances();
+
+            // Refresh balances every 30 seconds
+            setInterval(fetchTokenBalances, 30000);
         }
 
         // Call init when page loads
