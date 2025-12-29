@@ -37,6 +37,10 @@ for acc in resp.value:
     amount = int(info["tokenAmount"]["amount"])
     decimals = int(info["tokenAmount"]["decimals"])
     balance = amount / (10 ** decimals)
+    
+    # Skip zero balances
+    if balance == 0:
+        continue
 ```
 
 ### 3. RPC Client Configuration
@@ -123,3 +127,11 @@ The wallet address is derived from the private key stored in the `.env` file usi
 - Private keys are loaded from environment variables and never logged
 - All RPC calls are made securely over HTTPS
 - Token balances are read-only operations that don't require private key access
+
+## Complete Implementation
+The complete implementation in `app/main.py` includes:
+- Proper imports for all required libraries
+- Error handling for all RPC calls
+- Fallback to public RPC if Helius API key is not available
+- Proper token symbol and name mapping
+- Correct decimal handling for all token types
