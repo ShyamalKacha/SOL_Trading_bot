@@ -93,6 +93,7 @@ def index():
 def wallet_balance():
     """Function to get wallet token balances using Helius getAssetsByOwner"""
     try:
+        import json
         helius_api_key = os.getenv('HELIUS_API_KEY')
         if not helius_api_key:
             raise Exception("HELIUS_API_KEY not set")
@@ -120,9 +121,26 @@ def wallet_balance():
         r.raise_for_status()
         data = r.json()
 
+        # Debug log to see the raw response
+        print("Helius raw response:", json.dumps(data, indent=2))
+
+        items = data.get("result", {}).get("items", [])
+        native_balance = data.get("result", {}).get("nativeBalance", 0)
+
         balances = []
 
-        for item in data.get("result", {}).get("items", []):
+        # 1️⃣ ADD SOL FIRST (from nativeBalance)
+        if native_balance and native_balance > 0:
+            balances.append({
+                "token": "SOL",
+                "name": "Solana",
+                "balance": native_balance / 1e9,
+                "mint": "So11111111111111111111111111111111111111112",
+                "decimals": 9
+            })
+
+        # 2️⃣ ADD ALL SPL TOKENS
+        for item in items:
             if item.get("interface") != "FungibleToken":
                 continue
 
@@ -130,7 +148,7 @@ def wallet_balance():
             raw_balance = token_info.get("balance", 0)
             decimals = token_info.get("decimals", 0)
 
-            if raw_balance == 0:
+            if raw_balance <= 0:
                 continue
 
             balances.append({
@@ -140,42 +158,6 @@ def wallet_balance():
                 "mint": item.get("id"),
                 "decimals": decimals
             })
-
-        # Also get SOL balance separately
-        try:
-            sol_payload = {
-                "jsonrpc": "2.0",
-                "id": "get-balance",
-                "method": "getBalance",
-                "params": [wallet_address]
-            }
-
-            sol_response = requests.post(url, json=sol_payload, timeout=15)
-            sol_response.raise_for_status()
-            sol_data = sol_response.json()
-
-            if 'result' in sol_data and 'value' in sol_data['result']:
-                sol_lamports = sol_data['result']['value']
-                sol_balance = sol_lamports / 10**9  # Convert lamports to SOL
-
-                if sol_balance > 0:
-                    # Check if SOL is already in the balances list (it might be as wSOL)
-                    sol_exists = False
-                    for balance in balances:
-                        if balance['mint'] == "So11111111111111111111111111111111111111112":
-                            sol_exists = True
-                            break
-
-                    if not sol_exists:
-                        balances.append({
-                            "token": "SOL",
-                            "name": "Solana",
-                            "balance": sol_balance,
-                            "mint": "So11111111111111111111111111111111111111112",
-                            "decimals": 9
-                        })
-        except Exception as sol_error:
-            print(f"Error fetching SOL balance: {sol_error}")
 
         return jsonify({
             "success": True,
