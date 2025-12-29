@@ -3,25 +3,27 @@
 ## Overview
 This document explains how the wallet balance functionality works in the Solana Trading Bot, including the correct methods for fetching different types of assets from a Solana wallet.
 
-## Solana Asset Types
+## The Core Understanding
 
-Solana wallets can hold three different types of assets, each requiring different RPC calls to fetch:
+There are THREE different "balances" on Solana, and they come from different RPC calls:
 
 | Asset Type | Where it Lives | How to Fetch |
 |------------|----------------|--------------|
 | SOL | Native lamports on wallet | `getBalance` |
-| SPL Tokens (USDC, wSOL, etc.) | Token Accounts | `getTokenAccountsByOwner` |
+| SPL tokens (USDC, wSOL, etc.) | Token Accounts | `getTokenAccountsByOwner` |
 | NFTs | Metaplex / DAS | `getAssetsByOwner` (Helius DAS) |
 
-## Implementation Architecture
+## The Correct Architecture
 
-### 1. SOL Balance (Native)
+The implementation must handle ALL THREE asset types separately:
+
+### A) SOL Balance (Native)
 ```python
 sol_resp = client.get_balance(pubkey)
 sol_balance = sol_resp.value / 1_000_000_000
 ```
 
-### 2. SPL Token Balances (USDC, wSOL, others)
+### B) SPL Fungible Tokens (USDC, wSOL, others)
 ```python
 from solana.rpc.types import TokenAccountOpts
 from spl.token.constants import TOKEN_PROGRAM_ID
@@ -31,19 +33,34 @@ resp = client.get_token_accounts_by_owner(
     TokenAccountOpts(program_id=TOKEN_PROGRAM_ID)
 )
 
+tokens = []
+
 for acc in resp.value:
     info = acc.account.data.parsed["info"]
     mint = info["mint"]
     amount = int(info["tokenAmount"]["amount"])
     decimals = int(info["tokenAmount"]["decimals"])
+
     balance = amount / (10 ** decimals)
-    
+
     # Skip zero balances
     if balance == 0:
         continue
+
+    tokens.append({
+        "token": mint,     # you can map this to symbol later
+        "name": "",
+        "mint": mint,
+        "balance": balance
+    })
 ```
 
-### 3. RPC Client Configuration
+### C) NFTs (Optional, but handled separately)
+Helius DAS: `getAssetsByOwner` - This is handled separately and not mixed with SPL tokens
+
+## Complete Implementation
+
+### 1. RPC Client Configuration
 The implementation uses Helius RPC for better performance and reliability:
 ```python
 helius_api_key = os.getenv("HELIUS_API_KEY")
@@ -51,6 +68,76 @@ if helius_api_key:
     client = Client(f"https://mainnet.helius-rpc.com/?api-key={helius_api_key}")
 else:
     client = Client("https://api.mainnet-beta.solana.com")  # Fallback
+```
+
+### 2. SOL Balance (Native)
+```python
+sol_resp = client.get_balance(pubkey)
+sol_balance = sol_resp.value / 1_000_000_000
+
+balances = [{
+    "token": "SOL",
+    "name": "Solana",
+    "mint": "So11111111111111111111111111111111111111112",
+    "balance": sol_balance
+}]
+```
+
+### 3. SPL Token Balances (USDC, wSOL, others)
+```python
+from solana.rpc.types import TokenAccountOpts
+from spl.token.constants import TOKEN_PROGRAM_ID
+
+resp = client.get_token_accounts_by_owner(
+    pubkey,
+    TokenAccountOpts(program_id=TOKEN_PROGRAM_ID)
+)
+
+tokens = []
+
+for acc in resp.value:
+    info = acc.account.data.parsed["info"]
+    mint = info["mint"]
+    amount = int(info["tokenAmount"]["amount"])
+    decimals = int(info["tokenAmount"]["decimals"])
+
+    balance = amount / (10 ** decimals)
+
+    # Skip zero balances
+    if balance == 0:
+        continue
+
+    # Determine token symbol based on mint address
+    if mint == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v":  # USDC
+        token_symbol = "USDC"
+        token_name = "USD Coin"
+    elif mint == "So11111111111111111111111111111111111111112":  # wSOL
+        token_symbol = "wSOL"
+        token_name = "Wrapped Solana"
+    else:
+        token_symbol = TOKEN_INFO.get(mint, {}).get("symbol", "UNKNOWN")
+        token_name = TOKEN_INFO.get(mint, {}).get("name", "Unknown Token")
+
+    tokens.append({
+        "token": token_symbol,
+        "symbol": token_symbol,
+        "name": token_name,
+        "mint": mint,
+        "balance": balance,
+        "decimals": decimals,
+        "type": "spl-token"
+    })
+
+# Add SPL tokens to balances
+balances.extend(tokens)
+```
+
+### 4. Final API Response
+```python
+return jsonify({
+    "success": True,
+    "balances": balances
+})
 ```
 
 ## Key Points
@@ -122,16 +209,15 @@ The wallet address is derived from the private key stored in the `.env` file usi
 - If SPL tokens don't appear, check that they have non-zero balances
 - If you see "UNKNOWN" tokens, the mint address may not be in the known tokens mapping
 - NFTs will not appear in the token balance list (they're a different asset type)
+- If you see "UNKNOWN 0.000000 CgcZiaLj..." - this is an NFT, not a fungible token
+- If your wallet has no SPL tokens, the response will only show SOL (and NFTs separately)
 
 ## Security Notes
 - Private keys are loaded from environment variables and never logged
 - All RPC calls are made securely over HTTPS
 - Token balances are read-only operations that don't require private key access
 
-## Complete Implementation
-The complete implementation in `app/main.py` includes:
-- Proper imports for all required libraries
-- Error handling for all RPC calls
-- Fallback to public RPC if Helius API key is not available
-- Proper token symbol and name mapping
-- Correct decimal handling for all token types
+## Why Helius is Required
+- Public RPC: ❌ 403, rate limits, bot blocking
+- Helius: ✅ Trading, balances, DAS
+- Use Helius for everything on mainnet
