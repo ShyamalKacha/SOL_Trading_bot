@@ -67,9 +67,6 @@ TOKEN_INFO = {
     USDC_MINT: {"symbol": "USDC", "name": "USD Coin"},
 }
 
-# Get wallet public key from private key
-WALLET_PUBLIC_KEY = get_wallet_address()
-
 # Global variables to store trading state
 trading_state = {
     "is_running": False,
@@ -84,6 +81,9 @@ trading_state = {
     "remaining_parts": 0,  # Number of remaining parts to sell
     "transaction_history": [],
 }
+
+# Initialize wallet public key after functions are defined
+WALLET_PUBLIC_KEY = None
 
 @app.route('/')
 def index():
@@ -996,6 +996,14 @@ def simulate_sell(price, token, amount):
     print(f"[SIMULATION] Selling {amount} of {token_symbol} (mint: {token[:8]}...) at ${price:.8f} per unit")
     # In a real simulation, we would update wallet balances, track positions, etc.
     # For now, we just log the action as we're not connecting to a real wallet
+
+# Initialize wallet public key after all functions are defined
+try:
+    WALLET_PUBLIC_KEY = get_wallet_address()
+    print(f"Wallet address loaded: {WALLET_PUBLIC_KEY}")
+except Exception as e:
+    print(f"Error loading wallet address: {e}")
+    WALLET_PUBLIC_KEY = None
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
