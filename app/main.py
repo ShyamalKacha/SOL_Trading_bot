@@ -3,6 +3,7 @@ import requests
 import json
 from dotenv import load_dotenv
 import os
+from base58 import b58decode
 # Updated trading algorithm implementation
 try:
     from solana.publickey import PublicKey
@@ -15,7 +16,7 @@ except ImportError:
         from solders.pubkey import Pubkey as PublicKey
         from solana.rpc.api import Client
         from solana.transaction import Transaction
-        from solana.keypair import Keypair
+        from solders.keypair import Keypair
     except ImportError:
         # Mock objects for testing if libraries not available
         class PublicKey:
@@ -739,26 +740,33 @@ def get_token_symbol(token_mint):
     """Get a display name for a token mint"""
     return TOKEN_INFO.get(token_mint, {}).get("symbol", f"Token_{token_mint[:8]}")
 
+def load_keypair():
+    """Load the keypair from the private key in base58 format"""
+    private_key_base58 = os.getenv("SOLANA_PRIVATE_KEY")
+    if not private_key_base58:
+        raise ValueError("SOLANA_PRIVATE_KEY not set")
+
+    secret_key = b58decode(private_key_base58)
+    return Keypair.from_bytes(secret_key)
+
+KEYPAIR = load_keypair()
+WALLET_PUBLIC_KEY = str(KEYPAIR.pubkey())
+
+print("WALLET PUBLIC KEY:", WALLET_PUBLIC_KEY)
+
 def get_private_key():
     """Get the private key from environment variables"""
-    private_key_hex = os.getenv('SOLANA_PRIVATE_KEY')
-    if not private_key_hex:
-        raise ValueError("SOLANA_PRIVATE_KEY not found in environment variables")
+    private_key_base58 = os.getenv("SOLANA_PRIVATE_KEY")
+    if not private_key_base58:
+        raise ValueError("SOLANA_PRIVATE_KEY not set")
 
-    # Convert hex string to bytes
-    if private_key_hex.startswith('0x'):
-        private_key_bytes = bytes.fromhex(private_key_hex[2:])
-    else:
-        private_key_bytes = bytes.fromhex(private_key_hex)
-
-    return private_key_bytes
+    secret_key = b58decode(private_key_base58)
+    return secret_key
 
 def get_wallet_address():
     """Get the wallet address from the private key"""
     try:
-        private_key_bytes = get_private_key()
-        keypair = Keypair.from_secret_key(private_key_bytes)
-        return str(keypair.public_key)
+        return WALLET_PUBLIC_KEY
     except Exception as e:
         print(f"Error getting wallet address: {e}")
         return None
@@ -766,10 +774,9 @@ def get_wallet_address():
 def execute_swap(input_mint, output_mint, amount, slippage_bps=50):
     """Execute a swap transaction using Jupiter API and private key"""
     try:
-        # Get private key and create keypair
-        private_key_bytes = get_private_key()
-        keypair = Keypair.from_secret_key(private_key_bytes)
-        user_public_key = str(keypair.public_key)
+        # Use the global keypair
+        keypair = KEYPAIR
+        user_public_key = str(keypair.pubkey())
 
         # Get Jupiter API key
         jupiter_api_key = os.getenv('JUPITER_API_KEY')
@@ -967,14 +974,6 @@ def simulate_sell(price, token, amount):
     print(f"[SIMULATION] Selling {amount} of {token_symbol} (mint: {token[:8]}...) at ${price:.8f} per unit")
     # In a real simulation, we would update wallet balances, track positions, etc.
     # For now, we just log the action as we're not connecting to a real wallet
-
-# Initialize wallet public key after all functions are defined
-try:
-    WALLET_PUBLIC_KEY = get_wallet_address()
-    print(f"Wallet address loaded: {WALLET_PUBLIC_KEY}")
-except Exception as e:
-    print(f"Error loading wallet address: {e}")
-    WALLET_PUBLIC_KEY = None
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
