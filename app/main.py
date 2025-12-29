@@ -124,48 +124,33 @@ def wallet_balance():
 
         balances = []
 
-        # 1️⃣ Native SOL (ALWAYS include)
-        native_balance = result.get("nativeBalance", 0)
-        if native_balance > 0:  # Only add SOL if there's a balance
-            balances.append({
-                "token": "SOL",
-                "symbol": "SOL",
-                "name": "Solana",
-                "balance": native_balance / 1e9,
-                "mint": "So11111111111111111111111111111111111111112",
-                "decimals": 9,
-                "type": "native"
-            })
+        # SOL
+        native_balance_obj = result.get("nativeBalance", {})
+        native_lamports = native_balance_obj.get("lamports", 0)
 
-        # 2️⃣ EVERYTHING else (NO FILTERS)
+        balances.append({
+            "token": "SOL",
+            "symbol": "SOL",
+            "name": "Solana",
+            "balance": native_lamports / 1e9,
+            "mint": "So11111111111111111111111111111111111111112",
+            "decimals": 9,
+            "type": "native"
+        })
+
+        # SPL + everything else
         for item in result.get("items", []):
-            token_info = item.get("token_info", {}) or {}
+            token_info = item.get("token_info") or {}
 
-            raw_balance = token_info.get("balance", 0)
+            raw_balance = int(token_info.get("balance", 0))
             decimals = token_info.get("decimals", 0)
 
-            # Get token symbol and name, with fallback to known tokens
-            token_symbol = token_info.get("symbol") or "UNKNOWN"
-            token_name = token_info.get("name") or "Unknown Token"
-
-            # Known token mappings
-            mint_address = item.get("id")
-            known_tokens = {
-                "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": ("USDC", "USD Coin"),
-                "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB": ("USDT", "Tether USD"),
-                "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm": ("USDC", "USD Coin (old)"),
-                "So11111111111111111111111111111111111111112": ("SOL", "Solana"),
-            }
-
-            if mint_address in known_tokens:
-                token_symbol, token_name = known_tokens[mint_address]
-
             balances.append({
-                "token": token_symbol,
-                "symbol": token_symbol,
-                "name": token_name,
+                "token": token_info.get("symbol") or item["id"][:6],
+                "symbol": token_info.get("symbol") or "UNKNOWN",
+                "name": token_info.get("name") or "Unknown Token",
                 "balance": raw_balance / (10 ** decimals) if decimals else raw_balance,
-                "mint": mint_address,
+                "mint": item.get("id"),
                 "decimals": decimals,
                 "type": item.get("interface", "unknown")
             })
