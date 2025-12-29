@@ -97,62 +97,47 @@ def wallet_balance():
         if not helius_api_key:
             raise Exception("HELIUS_API_KEY not set")
 
-        wallet_address = WALLET_PUBLIC_KEY
-
-        url = f"https://mainnet.helius-rpc.com/?api-key={helius_api_key}"
-
-        payload = {
-            "jsonrpc": "2.0",
-            "id": "get-assets",
-            "method": "getAssetsByOwner",
-            "params": {
-                "ownerAddress": wallet_address,
-                "page": 1,
-                "limit": 1000
-            }
-        }
-
-        r = requests.post(url, json=payload, timeout=15)
-        r.raise_for_status()
-        data = r.json()
-
-        # Debug log to see the raw response
-        import json
-        print("Helius raw response:", json.dumps(data, indent=2))
-
-        result = data.get("result", {})
+        # Setup Helius RPC client
+        helius_rpc_url = f"https://mainnet.helius-rpc.com/?api-key={helius_api_key}"
+        client = Client(helius_rpc_url)
+        wallet_pubkey = PublicKey.from_string(WALLET_PUBLIC_KEY)
 
         balances = []
 
-        # SOL
-        native_balance_obj = result.get("nativeBalance", {})
-        native_lamports = native_balance_obj.get("lamports", 0)
-
+        # 1️⃣ GET SOL BALANCE (ALWAYS DO THIS)
+        sol_balance_resp = client.get_balance(wallet_pubkey)
+        sol_balance = sol_balance_resp.value / 1_000_000_000
         balances.append({
             "token": "SOL",
             "symbol": "SOL",
             "name": "Solana",
-            "balance": native_lamports / 1e9,
+            "balance": sol_balance,
             "mint": "So11111111111111111111111111111111111111112",
             "decimals": 9,
             "type": "native"
         })
 
-        # SPL + everything else
-        for item in result.get("items", []):
-            token_info = item.get("token_info") or {}
+        # 2️⃣ GET ALL SPL TOKENS (USDC, wSOL, ETC.)
+        resp = client.get_token_accounts_by_owner(
+            wallet_pubkey,
+            {"programId": PublicKey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")}
+        )
 
-            raw_balance = int(token_info.get("balance", 0))
-            decimals = token_info.get("decimals", 0)
+        for acct in resp.value:
+            token_account = acct.pubkey
+
+            bal_resp = client.get_token_account_balance(token_account)
+            bal = bal_resp.value
+            info = acct.account.data["parsed"]["info"]
 
             balances.append({
-                "token": token_info.get("symbol") or item["id"][:6],
-                "symbol": token_info.get("symbol") or "UNKNOWN",
-                "name": token_info.get("name") or "Unknown Token",
-                "balance": raw_balance / (10 ** decimals) if decimals else raw_balance,
-                "mint": item.get("id"),
-                "decimals": decimals,
-                "type": item.get("interface", "unknown")
+                "token": TOKEN_INFO.get(info["mint"], {}).get("symbol", info["mint"][:8] + "..."),
+                "symbol": TOKEN_INFO.get(info["mint"], {}).get("symbol", "UNKNOWN"),
+                "name": TOKEN_INFO.get(info["mint"], {}).get("name", "Unknown Token"),
+                "balance": float(bal.ui_amount),
+                "mint": info["mint"],
+                "decimals": bal.decimals,
+                "type": "spl-token"
             })
 
         return jsonify({
