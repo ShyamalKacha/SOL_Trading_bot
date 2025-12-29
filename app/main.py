@@ -139,12 +139,25 @@ def wallet_balance():
             raw_balance = token_info.get("balance", 0)
             decimals = token_info.get("decimals", 0)
 
+            # Get token symbol and name, with fallback to known tokens
+            token_symbol = token_info.get("symbol") or "UNKNOWN"
+            token_name = token_info.get("name") or "Unknown Token"
+
+            # Check if this is a known token based on mint address
+            mint_address = item.get("id")
+            if mint_address == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v":  # USDC
+                token_symbol = "USDC"
+                token_name = "USD Coin"
+            elif mint_address == "So11111111111111111111111111111111111111112":  # SOL
+                token_symbol = "SOL"
+                token_name = "Solana"
+
             balances.append({
-                "token": token_info.get("symbol") or "UNKNOWN",
-                "symbol": token_info.get("symbol") or "UNKNOWN",
-                "name": token_info.get("name") or "Unknown Token",
+                "token": token_symbol,
+                "symbol": token_symbol,
+                "name": token_name,
                 "balance": raw_balance / (10 ** decimals) if decimals else raw_balance,
-                "mint": item.get("id"),
+                "mint": mint_address,
                 "decimals": decimals,
                 "type": item.get("interface", "unknown")
             })
