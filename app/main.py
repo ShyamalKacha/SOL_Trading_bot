@@ -741,18 +741,21 @@ def get_token_symbol(token_mint):
     return TOKEN_INFO.get(token_mint, {}).get("symbol", f"Token_{token_mint[:8]}")
 
 def load_keypair():
-    """Load the keypair from the private key in base58 format"""
-    private_key_base58 = os.getenv("SOLANA_PRIVATE_KEY")
-    if not private_key_base58:
-        raise ValueError("SOLANA_PRIVATE_KEY not set")
+    key_b58 = os.environ["SOLANA_PRIVATE_KEY"].strip()
+    secret = b58decode(key_b58)
 
-    secret_key = b58decode(private_key_base58)
-    return Keypair.from_bytes(secret_key)
+    if len(secret) == 64:
+        return Keypair.from_bytes(secret)
+
+    if len(secret) == 32:
+        return Keypair.from_seed(secret)
+
+    raise ValueError(f"Invalid Solana key length: {len(secret)}")
 
 KEYPAIR = load_keypair()
 WALLET_PUBLIC_KEY = str(KEYPAIR.pubkey())
 
-print("WALLET PUBLIC KEY:", WALLET_PUBLIC_KEY)
+print("WALLET ADDRESS:", WALLET_PUBLIC_KEY)
 
 def get_private_key():
     """Get the private key from environment variables"""
@@ -760,8 +763,16 @@ def get_private_key():
     if not private_key_base58:
         raise ValueError("SOLANA_PRIVATE_KEY not set")
 
-    secret_key = b58decode(private_key_base58)
-    return secret_key
+    secret_key = b58decode(private_key_base58.strip())
+
+    if len(secret_key) == 64:
+        return secret_key
+
+    if len(secret_key) == 32:
+        # For 32-byte seeds, we need to expand to 64 bytes for transaction signing
+        return Keypair.from_seed(secret_key).to_bytes()
+
+    raise ValueError(f"Invalid Solana key length: {len(secret_key)}")
 
 def get_wallet_address():
     """Get the wallet address from the private key"""
