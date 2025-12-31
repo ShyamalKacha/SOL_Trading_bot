@@ -881,8 +881,15 @@ def execute_swap(input_mint, output_mint, amount, slippage_bps=50):
         signature = result.value
         confirmation = solana_client.confirm_transaction(signature, "confirmed")
 
-        if confirmation.value.err:
-            raise Exception(f"Transaction failed: {confirmation.value.err}")
+        # Handle both object and list responses
+        confirmation_value = confirmation.value
+        if isinstance(confirmation_value, list):
+            confirmation_value = confirmation_value[0] if confirmation_value else None
+
+        if confirmation_value and hasattr(confirmation_value, 'err') and confirmation_value.err:
+            raise Exception(f"Transaction failed: {confirmation_value.err}")
+        elif confirmation_value and isinstance(confirmation_value, dict) and confirmation_value.get('err'):
+            raise Exception(f"Transaction failed: {confirmation_value.get('err')}")
 
         return {
             "success": True,
