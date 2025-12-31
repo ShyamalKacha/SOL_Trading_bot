@@ -842,11 +842,21 @@ def execute_swap(input_mint, output_mint, amount, slippage_bps=50):
         transaction_data = b64decode(swap_data['swapTransaction'])
 
         # Create transaction object and sign it (for VersionedTransaction)
-        transaction = VersionedTransaction.from_bytes(transaction_data)
-        transaction = transaction.sign([keypair])
+        tx = VersionedTransaction.from_bytes(transaction_data)
+
+        # Sign the message
+        from solders.message import to_bytes_versioned
+        msg_bytes = to_bytes_versioned(tx.message)
+        sig = keypair.sign_message(msg_bytes)
+
+        # Populate signed transaction
+        signed_tx = VersionedTransaction.populate(
+            tx.message,
+            [sig]
+        )
 
         # Get the signed transaction bytes
-        signed_transaction = bytes(transaction)
+        signed_transaction = bytes(signed_tx)
 
         # Get Helius API key for RPC
         helius_api_key = os.getenv('HELIUS_API_KEY')
