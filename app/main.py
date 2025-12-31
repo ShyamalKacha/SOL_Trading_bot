@@ -839,7 +839,7 @@ def execute_swap(input_mint, output_mint, amount, slippage_bps=50):
 
         # Create transaction object and sign it
         transaction = Transaction.deserialize(transaction_data)
-        transaction.sign([keypair])
+        transaction.sign(keypair)
 
         # Serialize the signed transaction
         signed_transaction = transaction.serialize()
