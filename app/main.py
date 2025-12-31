@@ -868,12 +868,13 @@ def execute_swap(input_mint, output_mint, amount, slippage_bps=50):
             # Fallback to standard Solana RPC
             solana_client = Client("https://api.mainnet-beta.solana.com")
 
+        from solana.rpc.types import TxOpts
         result = solana_client.send_raw_transaction(
             signed_transaction,
-            opts={
-                "skip_preflight": False,
-                "preflight_commitment": "confirmed"
-            }
+            opts=TxOpts(
+                skip_preflight=False,
+                preflight_commitment="confirmed"
+            )
         )
 
         # Wait for confirmation
