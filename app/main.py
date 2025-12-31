@@ -907,14 +907,12 @@ def execute_buy_transaction(price, token, amount, network="mainnet"):
         input_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
         output_mint = token
 
-    # Convert amount to appropriate units (assuming USDC has 6 decimals and SOL has 9)
-    # This is a simplified conversion - in reality, we'd need to know the specific token decimals
-    if input_mint == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v":  # USDC
-        # Convert to USDC units (6 decimals)
-        amount_units = int(amount * 10**6)
-    else:
-        # Convert to SOL units (9 decimals)
-        amount_units = int(amount * 10**9)
+    # Convert amount to appropriate units based on the input token (USDC)
+    # When buying, we're specifying how much of the output token we want to buy
+    # So we need to determine how much input token to spend based on price
+    # For now, we'll use the amount as is but convert to proper decimal units for USDC
+    # This is a simplified conversion - in reality, we'd calculate based on desired output
+    amount_units = int(amount * 10**6)  # Convert to USDC units (6 decimals)
 
     # Execute the swap
     result = execute_swap(input_mint, output_mint, amount_units)
@@ -949,8 +947,9 @@ def execute_sell_transaction(price, token, amount, network="mainnet"):
         input_mint = token
         output_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
 
-    # Convert amount to appropriate units (assuming USDC has 6 decimals and SOL has 9)
-    # This is a simplified conversion - in reality, we'd need to know the specific token decimals
+    # Convert amount to appropriate units based on the token being sold (input token)
+    # For SOL, convert to SOL units (9 decimals)
+    # For other tokens, assume 6 decimals like USDC
     if input_mint == "So11111111111111111111111111111111111111112":  # SOL
         # Convert to SOL units (9 decimals)
         amount_units = int(amount * 10**9)
