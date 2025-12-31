@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,10 +10,12 @@
         body {
             background-color: #f8f9fa;
         }
+
         .card {
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
+
         .status-indicator {
             width: 12px;
             height: 12px;
@@ -20,18 +23,41 @@
             display: inline-block;
             margin-right: 5px;
         }
+
         .status-active {
             background-color: #28a745;
         }
+
         .status-inactive {
             background-color: #dc3545;
         }
+
         #transactionHistory {
             max-height: 300px;
             overflow-y: auto;
         }
+
+        .wallet-address {
+            font-family: monospace;
+            font-size: 0.9rem;
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 4px;
+            word-break: break-all;
+            border: 1px solid #dee2e6;
+        }
+
+        .copy-btn {
+            cursor: pointer;
+        }
+
+        #tokenBalancesContainer {
+            max-height: 200px;
+            overflow-y: auto;
+        }
     </style>
 </head>
+
 <body>
     <div class="container mt-5">
         <div class="row">
@@ -39,57 +65,109 @@
                 <h1 class="text-center mb-4">Solana Trading Bot</h1>
                 <p class="text-center text-muted mb-5">Automated trading based on your price thresholds</p>
             </div>
-        </div>
 
-        <div class="row">
-            <!-- Trading Configuration -->
-            <div class="col-lg-4">
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5>Trading Configuration</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="networkSelect" class="form-label">Network</label>
-                            <select class="form-select" id="networkSelect">
-                                <option value="mainnet">Mainnet</option>
-                                <option value="devnet">Devnet</option>
-                                <option value="testnet">Testnet</option>
-                            </select>
+            <!-- Wallet Information Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Wallet Information</h5>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="refreshWalletData()"
+                                title="Refresh Balances">
+                                ↻ Refresh
+                            </button>
                         </div>
-
-                        <div class="mb-3">
-                            <label for="tradingModeSelect" class="form-label">Trading Mode</label>
-                            <select class="form-select" id="tradingModeSelect">
-                                <option value="automatic">Automatic</option>
-                                <option value="user">User Approval</option>
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="selectedToken" class="form-label">Select Token (or enter custom below)</label>
-                            <select class="form-select" id="selectedToken">
-                                {% for token in tokens %}
-                                <option value="{{ token.mint }}">{{ token.symbol }} - {{ token.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="customTokenAddress" class="form-label">Or Enter Custom Token Address</label>
-                            <input type="text" class="form-control" id="customTokenAddress" placeholder="Enter token mint address (e.g., So11111111111111111111111111111111111111112 for wSOL/SOL)">
-                            <div class="form-text">Leave empty to use selected token above</div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Token Balances</label>
-                            <div id="tokenBalances">
-                                <div class="alert alert-info">Loading balances...</div>
+                        <div class="card-body">
+                            <div class="row">
+                                <!-- Wallet Address -->
+                                <div class="col-md-6 mb-3 mb-md-0">
+                                    <label class="form-label">Wallet Address</label>
+                                    <div class="input-group">
+                                        <div class="wallet-address flex-grow-1" id="walletAddress">
+                                            Loading...
+                                        </div>
+                                        <button class="btn btn-outline-secondary copy-btn" type="button"
+                                            onclick="copyWalletAddress()" title="Copy Address">
+                                            Copy
+                                        </button>
+                                    </div>
+                                    <div id="walletError" class="text-danger small mt-1" style="display: none;"></div>
+                                </div>
+                                <!-- Token Balances -->
+                                <div class="col-md-6">
+                                    <label class="form-label">Token Balances</label>
+                                    <div id="tokenBalancesContainer" class="border rounded p-2 bg-light">
+                                        <div id="tokenBalancesLoading" class="text-center py-2 text-muted">
+                                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                                            Loading balances...
+                                        </div>
+                                        <div id="tokenBalances" style="display: none;">
+                                            <table class="table table-sm table-striped mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Token</th>
+                                                        <th class="text-end">Balance</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="tokenBalancesList">
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div id="noTokens" class="text-center py-2 text-muted" style="display: none;">
+                                            No tokens found in wallet
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <div class="row">
+                <!-- Trading Configuration -->
+                <div class="col-lg-4">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5>Trading Configuration</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="networkSelect" class="form-label">Network</label>
+                                <select class="form-select" id="networkSelect">
+                                    <option value="mainnet">Mainnet</option>
+                                    <option value="devnet">Devnet</option>
+                                    <option value="testnet">Testnet</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="tradingModeSelect" class="form-label">Trading Mode</label>
+                                <select class="form-select" id="tradingModeSelect">
+                                    <option value="automatic">Automatic</option>
+                                    <option value="user">User Approval</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="selectedToken" class="form-label">Select Token (or enter custom
+                                    below)</label>
+                                <select class="form-select" id="selectedToken">
+                                    {% for token in tokens %}
+                                    <option value="{{ token.mint }}">{{ token.symbol }} - {{ token.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="customTokenAddress" class="form-label">Or Enter Custom Token Address</label>
+                                <input type="text" class="form-control" id="customTokenAddress"
+                                    placeholder="Enter token mint address (e.g., So11111111111111111111111111111111111111112 for wSOL/SOL)">
+                                <div class="form-text">Leave empty to use selected token above</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
             <!-- Trading Parameters -->
             <div class="col-lg-4">
@@ -500,33 +578,82 @@
             transactionHistory.innerHTML = html;
         }
 
+        // Wallet data
+        let fullWalletAddress = '';
+
+        // Function to update UI status indicators
+        function updateStatus(isRunning) {
+            if (isRunning) {
+                statusIndicator.className = 'status-indicator status-active';
+                statusText.textContent = 'Running';
+            } else {
+                statusIndicator.className = 'status-indicator status-inactive';
+                statusText.textContent = 'Stopped';
+            }
+        }
+
         // Function to display token balances
         function displayTokenBalances(balances) {
-            const tokenBalancesDiv = document.getElementById('tokenBalances');
+            // Show/hide loading indicator
+            document.getElementById('tokenBalancesLoading').style.display = 'none';
+            document.getElementById('tokenBalances').style.display = 'block';
+
+            const tokenBalancesList = document.getElementById('tokenBalancesList');
+            const noTokens = document.getElementById('noTokens');
 
             if (balances.length === 0) {
-                tokenBalancesDiv.innerHTML = '<div class="alert alert-info">No SPL tokens found (SOL balance shown separately)</div>';
+                noTokens.style.display = 'block';
+                tokenBalancesList.innerHTML = '';
                 return;
             }
 
-            let html = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Token</th><th>Balance</th><th>Mint Address</th></tr></thead><tbody>';
+            noTokens.style.display = 'none';
+            tokenBalancesList.innerHTML = '';
+
             balances.forEach(balance => {
-                html += `<tr>
+                const row = document.createElement('tr');
+                row.innerHTML = `
                     <td>
                         <div>${balance.token}</div>
                         <small class="text-muted">${balance.name || ''}</small>
                     </td>
                     <td class="text-end">${balance.balance ? balance.balance.toFixed(6) : '0.000000'}</td>
-                    <td><small>${balance.mint ? balance.mint.substring(0, 8) + '...' : ''}</small></td>
-                </tr>`;
+                `;
+                tokenBalancesList.appendChild(row);
             });
-            html += '</tbody></table></div>';
-            tokenBalancesDiv.innerHTML = html;
+        }
+
+        // Function to fetch wallet info
+        async function fetchWalletInfo() {
+            try {
+                const response = await fetch('/api/wallet-info');
+                const data = await response.json();
+
+                if (data.success) {
+                    fullWalletAddress = data.wallet_address;
+                    document.getElementById('walletAddress').textContent = data.wallet_address;
+                    document.getElementById('walletError').style.display = 'none';
+                } else {
+                    document.getElementById('walletAddress').textContent = 'Error loading wallet';
+                    document.getElementById('walletError').textContent = data.message;
+                    document.getElementById('walletError').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error fetching wallet info:', error);
+                document.getElementById('walletAddress').textContent = 'Error loading wallet';
+                document.getElementById('walletError').textContent = 'Failed to connect to wallet API';
+                document.getElementById('walletError').style.display = 'block';
+            }
         }
 
         // Function to fetch token balances
         async function fetchTokenBalances() {
             try {
+                // Show loading state
+                document.getElementById('tokenBalancesLoading').style.display = 'block';
+                document.getElementById('tokenBalances').style.display = 'none';
+                document.getElementById('noTokens').style.display = 'none';
+
                 const response = await fetch('/api/wallet-balance');
                 const data = await response.json();
 
@@ -534,18 +661,46 @@
                     displayTokenBalances(data.balances);
                 } else {
                     console.error('Error from backend:', data.message);
-                    displayTokenBalances(data.balances || []); // Use any balances returned even if success is false
+                    document.getElementById('tokenBalancesLoading').style.display = 'none';
+                    document.getElementById('walletError').textContent = data.message || 'Error loading balances';
+                    document.getElementById('walletError').style.display = 'block';
                 }
             } catch (error) {
                 console.error('Error fetching token balances:', error);
+                document.getElementById('tokenBalancesLoading').style.display = 'none';
                 document.getElementById('tokenBalances').innerHTML = '<div class="alert alert-danger">Error loading balances</div>';
+            }
+        }
+
+        // Function to refresh wallet data
+        async function refreshWalletData() {
+            await fetchWalletInfo();
+            await fetchTokenBalances();
+        }
+
+        // Function to copy wallet address to clipboard
+        function copyWalletAddress() {
+            if (fullWalletAddress) {
+                navigator.clipboard.writeText(fullWalletAddress).then(() => {
+                    // Show temporary feedback
+                    const copyBtn = document.querySelector('.copy-btn');
+                    const originalText = copyBtn.textContent;
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyBtn.textContent = originalText;
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy: ', err);
+                    alert('Failed to copy wallet address to clipboard');
+                });
             }
         }
 
         // Initialize the page
         async function init() {
             updateStatus(false);
-            // Fetch token balances on page load
+            // Fetch wallet info and balances on page load
+            await fetchWalletInfo();
             await fetchTokenBalances();
 
             // Refresh balances every 30 seconds

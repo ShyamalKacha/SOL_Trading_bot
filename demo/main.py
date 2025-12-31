@@ -3,35 +3,34 @@ import requests
 import json
 from dotenv import load_dotenv
 import os
-from base58 import b58decode
 # Updated trading algorithm implementation
+# Try to import from solders first (modern library), then fall back to older solana library
 try:
-    from solana.publickey import PublicKey
-    from solana.rpc.api import Client
-    from solana.transaction import Transaction
-    from solana.keypair import Keypair
-    from spl.token.constants import TOKEN_PROGRAM_ID
+    from solders.keypair import Keypair
+    from solders.pubkey import Pubkey as PublicKey
+    USING_SOLDERS = True
 except ImportError:
-    # For compatibility if solana library structure changes
+    USING_SOLDERS = False
     try:
-        from solders.pubkey import Pubkey as PublicKey
-        from solana.rpc.api import Client
-        from solana.transaction import Transaction
-        from solders.keypair import Keypair
-        from spl.token.constants import TOKEN_PROGRAM_ID
+        from solana.keypair import Keypair
+        from solana.publickey import PublicKey
     except ImportError:
         # Mock objects for testing if libraries not available
         class PublicKey:
             def __init__(self, key):
                 self.key = key
-        class Client:
-            pass
-        class Transaction:
-            pass
         class Keypair:
             pass
-        # Define a default TOKEN_PROGRAM_ID for fallback
-        TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+
+# Import RPC client
+try:
+    from solana.rpc.api import Client
+    from solana.transaction import Transaction
+except ImportError:
+    class Client:
+        pass
+    class Transaction:
+        pass
 
 # Load environment variables
 load_dotenv()
@@ -100,9 +99,6 @@ trading_state = {
     "transaction_history": [],
 }
 
-# Initialize wallet public key after functions are defined
-WALLET_PUBLIC_KEY = None
-
 @app.route('/')
 def index():
     return render_template('index.html', tokens=MOCK_TOKENS)
@@ -118,7 +114,7 @@ def get_wallet_info():
                 "message": "Could not retrieve wallet address from private key. Please check SOLANA_PRIVATE_KEY in .env file.",
                 "wallet_address": None
             })
-
+        
         return jsonify({
             "success": True,
             "wallet_address": wallet_address
@@ -269,7 +265,6 @@ def get_wallet_balance(wallet_address, network="mainnet"):
             "message": f"Error connecting to wallet: {str(e)}",
             "balances": []
         })
-
 
 @app.route('/api/get-price', methods=['POST'])
 def get_price():
@@ -730,44 +725,68 @@ def get_token_symbol(token_mint):
     """Get a display name for a token mint"""
     return TOKEN_INFO.get(token_mint, {}).get("symbol", f"Token_{token_mint[:8]}")
 
-def load_keypair():
-    key_b58 = os.environ["SOLANA_PRIVATE_KEY"].strip()
-    secret = b58decode(key_b58)
-
-    if len(secret) == 64:
-        return Keypair.from_bytes(secret)
-
-    if len(secret) == 32:
-        return Keypair.from_seed(secret)
-
-    raise ValueError(f"Invalid Solana key length: {len(secret)}")
-
-KEYPAIR = load_keypair()
-WALLET_PUBLIC_KEY = str(KEYPAIR.pubkey())
-
-print("WALLET ADDRESS:", WALLET_PUBLIC_KEY)
-
 def get_private_key():
-    """Get the private key from environment variables"""
-    private_key_base58 = os.getenv("SOLANA_PRIVATE_KEY")
-    if not private_key_base58:
-        raise ValueError("SOLANA_PRIVATE_KEY not set")
-
-    secret_key = b58decode(private_key_base58.strip())
-
-    if len(secret_key) == 64:
-        return secret_key
-
-    if len(secret_key) == 32:
-        # For 32-byte seeds, we need to expand to 64 bytes for transaction signing
-        return Keypair.from_seed(secret_key).to_bytes()
-
-    raise ValueError(f"Invalid Solana key length: {len(secret_key)}")
+    """Get the private key from environment variables.
+    Supports multiple formats:
+    - Hex string (64 or 128 characters, with or without 0x prefix)
+    - Base58 encoded string (common export format from Phantom, Solflare)
+    - JSON array of numbers (Solana CLI format)
+    """
+    private_key_str = os.getenv('SOLANA_PRIVATE_KEY')
+    if not private_key_str:
+        raise ValueError("SOLANA_PRIVATE_KEY not found in environment variables")
+    
+    private_key_str = private_key_str.strip()
+    
+    # Try JSON array format first (e.g., [1,2,3,...])
+    if private_key_str.startswith('['):
+        try:
+            import json
+            key_array = json.loads(private_key_str)
+            return bytes(key_array)
+        except (json.JSONDecodeError, ValueError) as e:
+            print(f"Failed to parse JSON array format: {e}")
+    
+    # Try hex format (with or without 0x prefix)
+    if private_key_str.startswith('0x'):
+        private_key_str = private_key_str[2:]
+    
+    # Check if it looks like hex (only hex characters)
+    if all(c in '0123456789abcdefABCDEF' for c in private_key_str):
+        try:
+            return bytes.fromhex(private_key_str)
+        except ValueError as e:
+            print(f"Failed to parse hex format: {e}")
+    
+    # Try base58 format (common export format from wallets like Phantom)
+    try:
+        import base58
+        return base58.b58decode(private_key_str)
+    except Exception as e:
+        print(f"Failed to parse base58 format: {e}")
+    
+    raise ValueError("Could not parse SOLANA_PRIVATE_KEY. Supported formats: hex string, base58 string, or JSON array.")
 
 def get_wallet_address():
     """Get the wallet address from the private key"""
     try:
-        return WALLET_PUBLIC_KEY
+        private_key_bytes = get_private_key()
+        
+        # solders uses from_bytes(), older solana library uses from_secret_key()
+        if USING_SOLDERS:
+            # solders expects 64 bytes (secret key + public key) or just 32 bytes (secret key)
+            if len(private_key_bytes) == 64:
+                keypair = Keypair.from_bytes(private_key_bytes)
+            elif len(private_key_bytes) == 32:
+                # Only seed provided, need to derive keypair
+                keypair = Keypair.from_seed(private_key_bytes)
+            else:
+                raise ValueError(f"Invalid key length: {len(private_key_bytes)} bytes. Expected 32 or 64.")
+            return str(keypair.pubkey())
+        else:
+            # Older solana library
+            keypair = Keypair.from_secret_key(private_key_bytes)
+            return str(keypair.public_key)
     except Exception as e:
         print(f"Error getting wallet address: {e}")
         return None
@@ -775,9 +794,21 @@ def get_wallet_address():
 def execute_swap(input_mint, output_mint, amount, slippage_bps=50):
     """Execute a swap transaction using Jupiter API and private key"""
     try:
-        # Use the global keypair
-        keypair = KEYPAIR
-        user_public_key = str(keypair.pubkey())
+        # Get private key and create keypair
+        private_key_bytes = get_private_key()
+        
+        # solders uses from_bytes(), older solana library uses from_secret_key()
+        if USING_SOLDERS:
+            if len(private_key_bytes) == 64:
+                keypair = Keypair.from_bytes(private_key_bytes)
+            elif len(private_key_bytes) == 32:
+                keypair = Keypair.from_seed(private_key_bytes)
+            else:
+                raise ValueError(f"Invalid key length: {len(private_key_bytes)} bytes")
+            user_public_key = str(keypair.pubkey())
+        else:
+            keypair = Keypair.from_secret_key(private_key_bytes)
+            user_public_key = str(keypair.public_key)
 
         # Get Jupiter API key
         jupiter_api_key = os.getenv('JUPITER_API_KEY')
