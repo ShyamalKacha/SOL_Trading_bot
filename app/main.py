@@ -870,16 +870,15 @@ def execute_swap(input_mint, output_mint, amount, slippage_bps=50):
 
         result = solana_client.send_raw_transaction(
             signed_transaction,
-            opts=RpcSendTransactionConfig(
-                skip_preflight=False,
-                preflight_commitment=CommitmentLevel.Confirmed
-            )
+            opts={
+                "skip_preflight": False,
+                "preflight_commitment": "confirmed"
+            }
         )
 
         # Wait for confirmation
-        from solders.commitment_config import CommitmentLevel
         signature = result.value
-        confirmation = solana_client.confirm_transaction(signature, CommitmentLevel.Confirmed)
+        confirmation = solana_client.confirm_transaction(signature, "confirmed")
 
         if confirmation.value.err:
             raise Exception(f"Transaction failed: {confirmation.value.err}")
