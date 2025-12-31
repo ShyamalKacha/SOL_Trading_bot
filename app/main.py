@@ -835,14 +835,18 @@ def execute_swap(input_mint, output_mint, amount, slippage_bps=50):
 
         # Deserialize the transaction
         from base64 import b64decode
+        from solders.transaction import VersionedTransaction
+        from solders.rpc.config import RpcSendTransactionConfig
+        from solders.commitment_config import CommitmentLevel
+
         transaction_data = b64decode(swap_data['swapTransaction'])
 
-        # Create transaction object and sign it
-        transaction = Transaction.deserialize(transaction_data)
-        transaction.sign(keypair)
+        # Create transaction object and sign it (for VersionedTransaction)
+        transaction = VersionedTransaction.from_bytes(transaction_data)
+        transaction = transaction.sign([keypair])
 
-        # Serialize the signed transaction
-        signed_transaction = transaction.serialize()
+        # Get the signed transaction bytes
+        signed_transaction = bytes(transaction)
 
         # Get Helius API key for RPC
         helius_api_key = os.getenv('HELIUS_API_KEY')
@@ -854,12 +858,18 @@ def execute_swap(input_mint, output_mint, amount, slippage_bps=50):
             # Fallback to standard Solana RPC
             solana_client = Client("https://api.mainnet-beta.solana.com")
 
-        result = solana_client.send_raw_transaction(signed_transaction)
+        result = solana_client.send_raw_transaction(
+            signed_transaction,
+            opts=RpcSendTransactionConfig(
+                skip_preflight=False,
+                preflight_commitment=CommitmentLevel.Confirmed
+            )
+        )
 
         # Wait for confirmation
-        from solana.rpc.commitment import Confirmed
+        from solders.commitment_config import CommitmentLevel
         signature = result.value
-        confirmation = solana_client.confirm_transaction(signature, Confirmed)
+        confirmation = solana_client.confirm_transaction(signature, CommitmentLevel.Confirmed)
 
         if confirmation.value.err:
             raise Exception(f"Transaction failed: {confirmation.value.err}")
