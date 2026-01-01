@@ -696,6 +696,138 @@
             }
         }
 
+        // Function to check for pending trade approvals
+        async function checkPendingApprovals() {
+            try {
+                const response = await fetch('/api/pending-approvals');
+                const data = await response.json();
+
+                if (data.approvals && data.approvals.length > 0) {
+                    // Show the first pending approval
+                    const approval = data.approvals[0];
+                    if (approval.result === 'pending') {
+                        showTradeApprovalModal(approval);
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking pending approvals:', error);
+            }
+        }
+
+        // Function to show trade approval modal
+        function showTradeApprovalModal(approval) {
+            // Create modal if it doesn't exist
+            let modal = document.getElementById('tradeApprovalModal');
+            if (!modal) {
+                // Create modal HTML
+                const modalHtml = `
+                    <div class="modal fade" id="tradeApprovalModal" tabindex="-1" aria-labelledby="tradeApprovalModalLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="tradeApprovalModalLabel">Trade Approval Required</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Do you want to approve this trade?</p>
+                                    <div class="mb-2">
+                                        <strong>Action:</strong> <span id="approvalAction"></span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Amount:</strong> <span id="approvalAmount"></span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Token:</strong> <span id="approvalToken"></span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Price:</strong> <span id="approvalPrice"></span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Time:</strong> <span id="approvalTime"></span>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-danger" id="rejectTradeBtn">Reject</button>
+                                    <button type="button" class="btn btn-success" id="approveTradeBtn">Approve</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                modal = document.getElementById('tradeApprovalModal');
+
+                // Add event listeners for approve/reject buttons
+                document.getElementById('approveTradeBtn').addEventListener('click', async () => {
+                    const tradeId = document.getElementById('approvalAction').dataset.tradeId;
+                    await approveTrade(tradeId);
+                    bootstrap.Modal.getInstance(modal).hide();
+                });
+
+                document.getElementById('rejectTradeBtn').addEventListener('click', async () => {
+                    const tradeId = document.getElementById('approvalAction').dataset.tradeId;
+                    await rejectTrade(tradeId);
+                    bootstrap.Modal.getInstance(modal).hide();
+                });
+            }
+
+            // Update modal content with approval data
+            document.getElementById('approvalAction').textContent = approval.action.toUpperCase();
+            document.getElementById('approvalAction').dataset.tradeId = approval.id;
+            document.getElementById('approvalAmount').textContent = approval.amount;
+            document.getElementById('approvalToken').textContent = approval.token;
+            document.getElementById('approvalPrice').textContent = '$' + approval.price.toFixed(8);
+            document.getElementById('approvalTime').textContent = new Date(approval.timestamp).toLocaleString();
+
+            // Show the modal
+            const bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+        }
+
+        // Function to approve a trade
+        async function approveTrade(tradeId) {
+            try {
+                const response = await fetch('/api/approve-trade', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ trade_id: tradeId })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    console.log('Trade approved:', tradeId);
+                } else {
+                    console.error('Error approving trade:', data.message);
+                }
+            } catch (error) {
+                console.error('Error approving trade:', error);
+            }
+        }
+
+        // Function to reject a trade
+        async function rejectTrade(tradeId) {
+            try {
+                const response = await fetch('/api/reject-trade', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ trade_id: tradeId })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    console.log('Trade rejected:', tradeId);
+                } else {
+                    console.error('Error rejecting trade:', data.message);
+                }
+            } catch (error) {
+                console.error('Error rejecting trade:', error);
+            }
+        }
+
         // Initialize the page
         async function init() {
             updateStatus(false);
@@ -705,6 +837,9 @@
 
             // Refresh balances every 30 seconds
             setInterval(fetchTokenBalances, 30000);
+
+            // Check for pending trade approvals every 2 seconds
+            setInterval(checkPendingApprovals, 2000);
         }
 
         // Call init when page loads
