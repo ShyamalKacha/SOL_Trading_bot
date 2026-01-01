@@ -891,6 +891,7 @@ def execute_swap(input_mint, output_mint, amount, slippage_bps=50):
         elif confirmation_value and isinstance(confirmation_value, dict) and confirmation_value.get('err'):
             raise Exception(f"Transaction failed: {confirmation_value.get('err')}")
 
+        # Transaction executed successfully
         return {
             "success": True,
             "signature": str(signature),
