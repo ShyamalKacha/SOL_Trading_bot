@@ -101,8 +101,14 @@ trading_state = {
     "transaction_history": [],
 }
 
-# Global queue for pending trade approvals
-pending_approvals = queue.Queue()
+# Global list for pending trade approvals (for frontend)
+pending_approvals_list = []
+# Lock for thread-safe access to the list
+import threading
+pending_approvals_lock = threading.Lock()
+
+# Global queue for trading algorithm to process approvals
+pending_approvals_queue = queue.Queue()
 
 # Initialize wallet public key after functions are defined
 WALLET_PUBLIC_KEY = None
@@ -397,19 +403,9 @@ def get_trading_status():
 def get_pending_approvals():
     """Get pending trade approvals"""
     try:
-        approvals = []
-        # Get all pending approvals without blocking
-        try:
-            while True:
-                approval = pending_approvals.get_nowait()
-                approvals.append(approval)
-        except queue.Empty:
-            pass
-
-        # Put them back in the queue since we just wanted to peek
-        for approval in approvals:
-            pending_approvals.put(approval)
-
+        with pending_approvals_lock:
+            # Return a copy of the list to avoid race conditions
+            approvals = [approval.copy() for approval in pending_approvals_list if approval.get('result') == 'pending']
         return jsonify({"approvals": approvals})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -421,19 +417,24 @@ def approve_trade():
         data = request.get_json()
         trade_id = data.get('trade_id')
 
-        # Find and approve the trade
-        try:
-            while True:
-                approval = pending_approvals.get_nowait()
+        # Update both the list and queue
+        with pending_approvals_lock:
+            # Update in the list
+            for approval in pending_approvals_list:
                 if approval['id'] == trade_id:
                     approval['approved'] = True
                     approval['result'] = 'approved'
-                    return jsonify({"success": True, "message": "Trade approved"})
-                else:
-                    # Put it back if it's not the right one
-                    pending_approvals.put(approval)
-        except queue.Empty:
-            return jsonify({"success": False, "message": "Trade not found"})
+                    break
+
+        # Also put approval result in the queue for the trading algorithm
+        approval_result = {
+            'id': trade_id,
+            'approved': True,
+            'result': 'approved'
+        }
+        pending_approvals_queue.put(approval_result)
+
+        return jsonify({"success": True, "message": "Trade approved"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -444,19 +445,24 @@ def reject_trade():
         data = request.get_json()
         trade_id = data.get('trade_id')
 
-        # Find and reject the trade
-        try:
-            while True:
-                approval = pending_approvals.get_nowait()
+        # Update both the list and queue
+        with pending_approvals_lock:
+            # Update in the list
+            for approval in pending_approvals_list:
                 if approval['id'] == trade_id:
                     approval['approved'] = False
                     approval['result'] = 'rejected'
-                    return jsonify({"success": True, "message": "Trade rejected"})
-                else:
-                    # Put it back if it's not the right one
-                    pending_approvals.put(approval)
-        except queue.Empty:
-            return jsonify({"success": False, "message": "Trade not found"})
+                    break
+
+        # Also put rejection result in the queue for the trading algorithm
+        approval_result = {
+            'id': trade_id,
+            'approved': False,
+            'result': 'rejected'
+        }
+        pending_approvals_queue.put(approval_result)
+
+        return jsonify({"success": True, "message": "Trade rejected"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -598,8 +604,9 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                             'result': 'pending'
                         }
 
-                        # Add to pending approvals queue
-                        pending_approvals.put(approval_request)
+                        # Add to both the list (for frontend) and queue (for trading algorithm)
+                        with pending_approvals_lock:
+                            pending_approvals_list.append(approval_request)
 
                         # Wait for user approval with timeout
                         approval_timeout = 30  # 30 seconds timeout
@@ -607,28 +614,22 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         approved = False
 
                         while time.time() - start_time < approval_timeout and not approved:
-                            # Check if this trade has been approved/rejected
+                            # Check if this trade has been approved/rejected from the queue
                             try:
-                                while True:
-                                    check_approval = pending_approvals.get_nowait()
-                                    if check_approval['id'] == trade_id:
-                                        if check_approval['result'] == 'approved':
-                                            approved = True
-                                            transaction_result = execute_buy_transaction(current_price, selected_token, part_size, network)
-                                            transaction_successful = transaction_result["success"]
-                                            break
-                                        elif check_approval['result'] == 'rejected':
-                                            transaction_successful = False
-                                            print(f"[USER MODE] User rejected buy intent for {part_size} of {get_token_symbol(selected_token)} at ${current_price}")
-                                            break
-                                    else:
-                                        # Put it back if it's not the right one
-                                        pending_approvals.put(check_approval)
+                                check_approval = pending_approvals_queue.get_nowait()
+                                if check_approval['id'] == trade_id:
+                                    if check_approval['result'] == 'approved':
+                                        approved = True
+                                        transaction_result = execute_buy_transaction(current_price, selected_token, part_size, network)
+                                        transaction_successful = transaction_result["success"]
+                                    elif check_approval['result'] == 'rejected':
+                                        transaction_successful = False
+                                        print(f"[USER MODE] User rejected buy intent for {part_size} of {get_token_symbol(selected_token)} at ${current_price}")
                             except queue.Empty:
                                 pass
 
                             if not approved:
-                                time.sleep(1)  # Check every second
+                                time.sleep(0.5)  # Check more frequently
 
                         if not approved:
                             # Timeout - reject the trade
@@ -714,8 +715,9 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                             'result': 'pending'
                         }
 
-                        # Add to pending approvals queue
-                        pending_approvals.put(approval_request)
+                        # Add to both the list (for frontend) and queue (for trading algorithm)
+                        with pending_approvals_lock:
+                            pending_approvals_list.append(approval_request)
 
                         # Wait for user approval with timeout
                         approval_timeout = 30  # 30 seconds timeout
@@ -723,28 +725,22 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         approved = False
 
                         while time.time() - start_time < approval_timeout and not approved:
-                            # Check if this trade has been approved/rejected
+                            # Check if this trade has been approved/rejected from the queue
                             try:
-                                while True:
-                                    check_approval = pending_approvals.get_nowait()
-                                    if check_approval['id'] == trade_id:
-                                        if check_approval['result'] == 'approved':
-                                            approved = True
-                                            transaction_result = execute_sell_transaction(current_price, selected_token, part_size, network)
-                                            transaction_successful = transaction_result["success"]
-                                            break
-                                        elif check_approval['result'] == 'rejected':
-                                            transaction_successful = False
-                                            print(f"[USER MODE] User rejected sell intent for {part_size} of {get_token_symbol(selected_token)} at ${current_price}")
-                                            break
-                                    else:
-                                        # Put it back if it's not the right one
-                                        pending_approvals.put(check_approval)
+                                check_approval = pending_approvals_queue.get_nowait()
+                                if check_approval['id'] == trade_id:
+                                    if check_approval['result'] == 'approved':
+                                        approved = True
+                                        transaction_result = execute_sell_transaction(current_price, selected_token, part_size, network)
+                                        transaction_successful = transaction_result["success"]
+                                    elif check_approval['result'] == 'rejected':
+                                        transaction_successful = False
+                                        print(f"[USER MODE] User rejected sell intent for {part_size} of {get_token_symbol(selected_token)} at ${current_price}")
                             except queue.Empty:
                                 pass
 
                             if not approved:
-                                time.sleep(1)  # Check every second
+                                time.sleep(0.5)  # Check more frequently
 
                         if not approved:
                             # Timeout - reject the trade
