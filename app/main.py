@@ -796,6 +796,10 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                     # profit per token = sell price - base price at time of sell
                     profit_per_token = current_price - current_base_price
                     total_profit = profit_per_token * part_size
+
+                    # Account for transaction fees (estimated at $0.00025 per transaction as an example)
+                    estimated_fee = 0.00025  # This is an estimate - actual fees vary
+                    total_profit -= estimated_fee  # Subtract fee from profit
                     trading_state['total_profit'] += total_profit
 
                     # Reduce position when selling
@@ -1103,6 +1107,16 @@ def execute_buy_transaction(price, token, amount, network="mainnet"):
         print(f"[SIMULATION] Buying {amount} of {token_symbol} (mint: {token[:8]}...) at ${price:.8f} per unit")
         return {"success": True, "signature": "simulated", "message": "Simulated transaction"}
 
+    # Check wallet balance before executing trade
+    wallet_address = WALLET_PUBLIC_KEY
+    balance_result = get_wallet_balance(wallet_address, network)
+
+    if not balance_result.get("success", False):
+        print(f"[FAILED] Could not check wallet balance: {balance_result.get('message', 'Unknown error')}")
+        return {"success": False, "error": "Could not check wallet balance"}
+
+    balances = balance_result.get("balances", [])
+
     # Determine input and output mints for the swap
     # If buying token, we're swapping from SOL/USDC to the token
     # For this example, assume we're swapping from USDC to the target token
@@ -1110,9 +1124,27 @@ def execute_buy_transaction(price, token, amount, network="mainnet"):
     if token == "So11111111111111111111111111111111111111112":  # SOL
         input_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
         output_mint = token
+        input_token_symbol = "USDC"
     else:
         input_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
         output_mint = token
+        input_token_symbol = "USDC"
+
+    # Find the input token balance
+    input_balance = 0
+    for balance_item in balances:
+        if balance_item.get("token") == input_token_symbol:
+            input_balance = balance_item.get("balance", 0)
+            break
+
+    # Calculate required amount including a reserved balance for fees
+    # Reserve 1 USDC for transaction fees
+    reserved_balance = 1.0
+    required_amount = amount + reserved_balance
+
+    if input_balance < required_amount:
+        print(f"[FAILED] Insufficient balance for buy: Have {input_balance} {input_token_symbol}, need {required_amount} {input_token_symbol}")
+        return {"success": False, "error": f"Insufficient balance: Have {input_balance}, need {required_amount}"}
 
     # Convert amount to appropriate units based on the input token (USDC)
     # When buying, we're specifying how much of the output token we want to buy
@@ -1143,6 +1175,16 @@ def execute_sell_transaction(price, token, amount, network="mainnet"):
         print(f"[SIMULATION] Selling {amount} of {token_symbol} (mint: {token[:8]}...) at ${price:.8f} per unit")
         return {"success": True, "signature": "simulated", "message": "Simulated transaction"}
 
+    # Check wallet balance before executing trade
+    wallet_address = WALLET_PUBLIC_KEY
+    balance_result = get_wallet_balance(wallet_address, network)
+
+    if not balance_result.get("success", False):
+        print(f"[FAILED] Could not check wallet balance: {balance_result.get('message', 'Unknown error')}")
+        return {"success": False, "error": "Could not check wallet balance"}
+
+    balances = balance_result.get("balances", [])
+
     # Determine input and output mints for the swap
     # If selling token, we're swapping from the token to SOL/USDC
     # For this example, assume we're swapping from the token to USDC
@@ -1150,9 +1192,27 @@ def execute_sell_transaction(price, token, amount, network="mainnet"):
     if token == "So11111111111111111111111111111111111111112":  # SOL
         input_mint = token
         output_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
+        input_token_symbol = "SOL"
     else:
         input_mint = token
         output_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
+        input_token_symbol = get_token_symbol(token)
+
+    # Find the input token balance
+    input_balance = 0
+    for balance_item in balances:
+        if balance_item.get("token") == input_token_symbol:
+            input_balance = balance_item.get("balance", 0)
+            break
+
+    # Calculate required amount including a reserved balance for fees
+    # Reserve 0.01 SOL or 1 USDC for transaction fees
+    reserved_balance = 0.01 if input_token_symbol == "SOL" else 1.0
+    required_amount = amount + reserved_balance
+
+    if input_balance < required_amount:
+        print(f"[FAILED] Insufficient balance for sell: Have {input_balance} {input_token_symbol}, need {required_amount} {input_token_symbol}")
+        return {"success": False, "error": f"Insufficient balance: Have {input_balance}, need {required_amount}"}
 
     # Convert amount to appropriate units based on the token being sold (input token)
     # For SOL, convert to SOL units (9 decimals)
