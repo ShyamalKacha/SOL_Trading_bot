@@ -696,7 +696,8 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         'execution_price': current_price,
                         'status': 'completed',  # New field to track transaction status
                         'buy_parts_count': len(trading_state['buy_parts']),
-                        'sell_parts_count': len(trading_state['sell_parts'])
+                        'sell_parts_count': len(trading_state['sell_parts']),
+                        'fee_deducted': 0  # No fee deducted for buy transactions (fee affects profit on sell)
                     }
 
                     trading_state['transaction_history'].append(tx_record)
@@ -820,13 +821,14 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         'price': current_price,
                         'amount': part_size,
                         'base_price_at_execution': current_base_price,
-                        'pnl': total_profit,  # P&L for sell transactions
+                        'pnl': total_profit,  # P&L for sell transactions (after fee deduction)
                         'total_parts': parts,
                         'part_number': sell_part_number,  # Number of sell operations performed (captured before array modification)
                         'execution_price': current_price,
                         'status': 'completed',  # New field to track transaction status
                         'buy_parts_count': len(trading_state['buy_parts']),
-                        'sell_parts_count': len(trading_state['sell_parts'])
+                        'sell_parts_count': len(trading_state['sell_parts']),
+                        'fee_deducted': 0.00025  # Fee deducted from profit
                     }
 
                     trading_state['transaction_history'].append(tx_record)
