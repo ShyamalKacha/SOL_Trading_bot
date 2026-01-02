@@ -1142,9 +1142,21 @@ def execute_buy_transaction(price, token, amount, network="mainnet"):
             break
 
     # Calculate required amount including a reserved balance for fees
-    # Reserve 0.04 USDC for transaction fees
-    reserved_balance = 0.04
+    # No reserved balance needed for USDC since fees are in SOL
+    reserved_balance = 0.0  # No reserved balance for USDC
     required_amount = amount + reserved_balance
+
+    # Check if there's enough SOL for transaction fees (always required)
+    sol_balance = 0
+    for balance_item in balances:
+        if balance_item.get("token") == "SOL":
+            sol_balance = balance_item.get("balance", 0)
+            break
+
+    # Ensure there's enough SOL to cover transaction fees
+    if sol_balance < 0.005:
+        print(f"[FAILED] Insufficient SOL for transaction fees: Have {sol_balance} SOL, need 0.005 SOL")
+        return {"success": False, "error": f"Insufficient SOL for fees: Have {sol_balance}, need 0.005"}
 
     if input_balance < required_amount:
         print(f"[FAILED] Insufficient balance for buy: Have {input_balance} {input_token_symbol}, need {required_amount} {input_token_symbol}")
@@ -1212,9 +1224,21 @@ def execute_sell_transaction(price, token, amount, network="mainnet"):
             break
 
     # Calculate required amount including a reserved balance for fees
-    # Reserve 0.04 SOL for transaction fees
-    reserved_balance = 0.04
+    # No reserved balance needed for the token being sold since fees are in SOL
+    reserved_balance = 0.0  # No reserved balance for the token being sold
     required_amount = amount + reserved_balance
+
+    # Check if there's enough SOL for transaction fees (always required)
+    sol_balance = 0
+    for balance_item in balances:
+        if balance_item.get("token") == "SOL":
+            sol_balance = balance_item.get("balance", 0)
+            break
+
+    # Ensure there's enough SOL to cover transaction fees
+    if sol_balance < 0.005:
+        print(f"[FAILED] Insufficient SOL for transaction fees: Have {sol_balance} SOL, need 0.005 SOL")
+        return {"success": False, "error": f"Insufficient SOL for fees: Have {sol_balance}, need 0.005"}
 
     if input_balance < required_amount:
         print(f"[FAILED] Insufficient balance for sell: Have {input_balance} {input_token_symbol}, need {required_amount} {input_token_symbol}")
