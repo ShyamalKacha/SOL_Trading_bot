@@ -657,6 +657,9 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                     # Only update state if transaction was successful
                     trading_state['last_action'] = 'buy'
 
+                    # Record the part number before modifying arrays
+                    buy_part_number = parts - len(trading_state['buy_parts'])
+
                     # When buying: reduce buy_parts by 1 (use a buy opportunity), increase sell_parts by 1 (create a sell opportunity)
                     if len(trading_state['buy_parts']) > 0:
                         # Remove a part from buy array (use up a buy opportunity)
@@ -689,7 +692,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         'base_price_at_execution': current_base_price,
                         'pnl': None,  # No P&L for buy transactions
                         'total_parts': parts,
-                        'part_number': parts - len(trading_state['buy_parts']),  # Number of buy operations performed (total parts - remaining buy opportunities)
+                        'part_number': buy_part_number,  # Number of buy operations performed (captured before array modification)
                         'execution_price': current_price,
                         'status': 'completed',  # New field to track transaction status
                         'buy_parts_count': len(trading_state['buy_parts']),
@@ -774,6 +777,9 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                     # Only update state if transaction was successful
                     trading_state['last_action'] = 'sell'
 
+                    # Record the part number before modifying arrays
+                    sell_part_number = parts - len(trading_state['sell_parts'])
+
                     # When selling: reduce sell_parts by 1 (use a sell opportunity), increase buy_parts by 1 (create a buy opportunity)
                     if len(trading_state['sell_parts']) > 0:
                         # Remove a part from sell array (use up a sell opportunity)
@@ -812,7 +818,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         'base_price_at_execution': current_base_price,
                         'pnl': total_profit,  # P&L for sell transactions
                         'total_parts': parts,
-                        'part_number': parts - len(trading_state['sell_parts']),  # Number of sell operations performed (total parts - remaining sell opportunities)
+                        'part_number': sell_part_number,  # Number of sell operations performed (captured before array modification)
                         'execution_price': current_price,
                         'status': 'completed',  # New field to track transaction status
                         'buy_parts_count': len(trading_state['buy_parts']),
