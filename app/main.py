@@ -798,8 +798,8 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                     profit_per_token = current_price - current_base_price
                     total_profit = profit_per_token * part_size
 
-                    # Account for transaction fees (estimated at $0.00025 per transaction as an example)
-                    estimated_fee = 0.00025  # This is an estimate - actual fees vary
+                    # Account for transaction fees (estimated at $0.02 per transaction as requested)
+                    estimated_fee = 0.02  # This is the requested fee amount
                     total_profit -= estimated_fee  # Subtract fee from profit
                     trading_state['total_profit'] += total_profit
 
@@ -828,7 +828,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         'status': 'completed',  # New field to track transaction status
                         'buy_parts_count': len(trading_state['buy_parts']),
                         'sell_parts_count': len(trading_state['sell_parts']),
-                        'fee_deducted': 0.00025  # Fee deducted from profit
+                        'fee_deducted': 0.02  # Fee deducted from profit
                     }
 
                     trading_state['transaction_history'].append(tx_record)
@@ -1111,7 +1111,9 @@ def execute_buy_transaction(price, token, amount, network="mainnet"):
 
     # Check wallet balance before executing trade
     wallet_address = WALLET_PUBLIC_KEY
-    balance_result = get_wallet_balance(wallet_address, network)
+    # Use the app context when calling get_wallet_balance
+    with app.app_context():
+        balance_result = get_wallet_balance(wallet_address, network)
 
     if not balance_result.get("success", False):
         print(f"[FAILED] Could not check wallet balance: {balance_result.get('message', 'Unknown error')}")
@@ -1140,8 +1142,8 @@ def execute_buy_transaction(price, token, amount, network="mainnet"):
             break
 
     # Calculate required amount including a reserved balance for fees
-    # Reserve 1 USDC for transaction fees
-    reserved_balance = 1.0
+    # Reserve 0.04 USDC for transaction fees
+    reserved_balance = 0.04
     required_amount = amount + reserved_balance
 
     if input_balance < required_amount:
@@ -1179,7 +1181,9 @@ def execute_sell_transaction(price, token, amount, network="mainnet"):
 
     # Check wallet balance before executing trade
     wallet_address = WALLET_PUBLIC_KEY
-    balance_result = get_wallet_balance(wallet_address, network)
+    # Use the app context when calling get_wallet_balance
+    with app.app_context():
+        balance_result = get_wallet_balance(wallet_address, network)
 
     if not balance_result.get("success", False):
         print(f"[FAILED] Could not check wallet balance: {balance_result.get('message', 'Unknown error')}")
@@ -1208,8 +1212,8 @@ def execute_sell_transaction(price, token, amount, network="mainnet"):
             break
 
     # Calculate required amount including a reserved balance for fees
-    # Reserve 0.01 SOL or 1 USDC for transaction fees
-    reserved_balance = 0.01 if input_token_symbol == "SOL" else 1.0
+    # Reserve 0.04 SOL for transaction fees
+    reserved_balance = 0.04
     required_amount = amount + reserved_balance
 
     if input_balance < required_amount:
