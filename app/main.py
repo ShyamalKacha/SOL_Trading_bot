@@ -1113,7 +1113,10 @@ def execute_buy_transaction(price, token, amount, network="mainnet"):
     wallet_address = WALLET_PUBLIC_KEY
     # Use the app context when calling get_wallet_balance
     with app.app_context():
-        balance_result = get_wallet_balance(wallet_address, network)
+        balance_response = get_wallet_balance(wallet_address, network)
+        # Extract the JSON data from the response
+        from flask import json
+        balance_result = json.loads(balance_response.get_data(as_text=True))
 
     if not balance_result.get("success", False):
         print(f"[FAILED] Could not check wallet balance: {balance_result.get('message', 'Unknown error')}")
@@ -1195,7 +1198,10 @@ def execute_sell_transaction(price, token, amount, network="mainnet"):
     wallet_address = WALLET_PUBLIC_KEY
     # Use the app context when calling get_wallet_balance
     with app.app_context():
-        balance_result = get_wallet_balance(wallet_address, network)
+        balance_response = get_wallet_balance(wallet_address, network)
+        # Extract the JSON data from the response
+        from flask import json
+        balance_result = json.loads(balance_response.get_data(as_text=True))
 
     if not balance_result.get("success", False):
         print(f"[FAILED] Could not check wallet balance: {balance_result.get('message', 'Unknown error')}")
