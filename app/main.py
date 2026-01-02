@@ -99,6 +99,8 @@ trading_state = {
     "part_size": 0,  # Size of each part
     "remaining_parts": 0,  # Number of remaining parts to sell
     "transaction_history": [],
+    "buy_parts": [],  # Array to track buy parts
+    "sell_parts": [],  # Array to track sell parts
 }
 
 # Global list for pending trade approvals (for frontend)
@@ -397,6 +399,11 @@ def get_trading_status():
     # If dynamic_base_price is not set, default to the original base price concept
     if 'dynamic_base_price' not in status or status['dynamic_base_price'] is None:
         status['dynamic_base_price'] = status.get('original_base_price', 0)
+
+    # Add buy and sell parts counts to the status
+    status['buy_parts_count'] = len(status.get('buy_parts', []))
+    status['sell_parts_count'] = len(status.get('sell_parts', []))
+
     return jsonify(status)
 
 @app.route('/api/pending-approvals')
@@ -480,9 +487,10 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
     trading_state['parts'] = parts
     trading_state['part_size'] = part_size
 
-    # Track consecutive buy/sell operations
-    trading_state['consecutive_buys'] = 0
-    trading_state['consecutive_sells'] = 0
+    # Initialize buy and sell arrays with the specified number of parts
+    # Initially, all parts are in the sell array (ready to sell)
+    trading_state['buy_parts'] = []  # No parts bought initially
+    trading_state['sell_parts'] = list(range(parts))  # All parts available for selling initially
 
     # Store trading mode and network
     trading_state['trading_mode'] = trading_mode
@@ -575,8 +583,10 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
             buy_threshold = current_base_price * (1 - down_percentage / 100)
 
             # Determine if we should buy or sell based on current price vs thresholds
-            should_buy = current_price <= buy_threshold and trading_state['consecutive_buys'] < parts
-            should_sell = current_price >= sell_threshold and trading_state['consecutive_sells'] < parts
+            # We can buy if there are parts in the sell array (available to buy)
+            # We can sell if there are parts in the buy array (available to sell)
+            should_buy = current_price <= buy_threshold and len(trading_state['sell_parts']) > 0
+            should_sell = current_price >= sell_threshold and len(trading_state['buy_parts']) > 0
 
             # Execute buy/sell based on conditions - note that we can switch between buy and sell at any time
             if should_buy:
@@ -647,9 +657,11 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                     # Only update state if transaction was successful
                     trading_state['last_action'] = 'buy'
 
-                    # Update consecutive counters
-                    trading_state['consecutive_buys'] += 1
-                    trading_state['consecutive_sells'] = 0  # Reset consecutive sells counter
+                    # Move a part from sell array to buy array
+                    if len(trading_state['sell_parts']) > 0:
+                        # Remove a part from sell array and add it to buy array
+                        moved_part = trading_state['sell_parts'].pop()  # Remove from sell array
+                        trading_state['buy_parts'].append(moved_part)  # Add to buy array
 
                     # Update base price to execution price (only on successful transaction)
                     trading_state['base_price'] = current_price
@@ -661,7 +673,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                     if trading_state['position'] > 0:
                         trading_state['avg_purchase_price'] = (old_position_value + new_purchase_value) / trading_state['position']
 
-                    print(f"[TRADING] BUY: Part {trading_state['consecutive_buys']} of {parts} bought at {current_price}. New base price: {trading_state['base_price']}")
+                    print(f"[TRADING] BUY: Moved part from sell to buy array. Buy parts: {len(trading_state['buy_parts'])}, Sell parts: {len(trading_state['sell_parts'])} at {current_price}. New base price: {trading_state['base_price']}")
 
                     # Record transaction
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -675,9 +687,11 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         'base_price_at_execution': current_base_price,
                         'pnl': None,  # No P&L for buy transactions
                         'total_parts': parts,
-                        'part_number': trading_state['consecutive_buys'],
+                        'part_number': len(trading_state['buy_parts']),  # Current number of bought parts
                         'execution_price': current_price,
-                        'status': 'completed'  # New field to track transaction status
+                        'status': 'completed',  # New field to track transaction status
+                        'buy_parts_count': len(trading_state['buy_parts']),
+                        'sell_parts_count': len(trading_state['sell_parts'])
                     }
 
                     trading_state['transaction_history'].append(tx_record)
@@ -687,8 +701,8 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         trading_state['transaction_history'] = trading_state['transaction_history'][-20:]
                 else:
                     # Transaction failed, don't update base price or other state
-                    print(f"[TRADING] BUY failed: Part {trading_state['consecutive_buys'] + 1} of {parts} failed at {current_price}. Base price unchanged: {trading_state['base_price']}")
-                    # Don't increment consecutive counters or update base price on failure
+                    print(f"[TRADING] BUY failed: Could not move part from sell to buy array. Buy parts: {len(trading_state['buy_parts'])}, Sell parts: {len(trading_state['sell_parts'])} at {current_price}. Base price unchanged: {trading_state['base_price']}")
+                    # Don't move parts or update base price on failure
 
             elif should_sell:
                 # SELL operation
@@ -758,9 +772,11 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                     # Only update state if transaction was successful
                     trading_state['last_action'] = 'sell'
 
-                    # Update consecutive counters
-                    trading_state['consecutive_sells'] += 1
-                    trading_state['consecutive_buys'] = 0  # Reset consecutive buys counter
+                    # Move a part from buy array to sell array
+                    if len(trading_state['buy_parts']) > 0:
+                        # Remove a part from buy array and add it to sell array
+                        moved_part = trading_state['buy_parts'].pop()  # Remove from buy array
+                        trading_state['sell_parts'].append(moved_part)  # Add to sell array
 
                     # Update base price to execution price (only on successful transaction)
                     trading_state['base_price'] = current_price
@@ -778,7 +794,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         trading_state['position'] = 0
                         trading_state['avg_purchase_price'] = 0
 
-                    print(f"[TRADING] SELL: Part {trading_state['consecutive_sells']} of {parts} sold at {current_price}. New base price: {trading_state['base_price']}, Total profit: {trading_state['total_profit']}")
+                    print(f"[TRADING] SELL: Moved part from buy to sell array. Buy parts: {len(trading_state['buy_parts'])}, Sell parts: {len(trading_state['sell_parts'])} at {current_price}. New base price: {trading_state['base_price']}, Total profit: {trading_state['total_profit']}")
 
                     # Record transaction
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -792,9 +808,11 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         'base_price_at_execution': current_base_price,
                         'pnl': total_profit,  # P&L for sell transactions
                         'total_parts': parts,
-                        'part_number': trading_state['consecutive_sells'],
+                        'part_number': len(trading_state['sell_parts']),  # Current number of sold parts
                         'execution_price': current_price,
-                        'status': 'completed'  # New field to track transaction status
+                        'status': 'completed',  # New field to track transaction status
+                        'buy_parts_count': len(trading_state['buy_parts']),
+                        'sell_parts_count': len(trading_state['sell_parts'])
                     }
 
                     trading_state['transaction_history'].append(tx_record)
@@ -804,8 +822,8 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         trading_state['transaction_history'] = trading_state['transaction_history'][-20:]
                 else:
                     # Transaction failed, don't update base price or other state
-                    print(f"[TRADING] SELL failed: Part {trading_state['consecutive_sells'] + 1} of {parts} failed at {current_price}. Base price unchanged: {trading_state['base_price']}")
-                    # Don't increment consecutive counters or update base price on failure
+                    print(f"[TRADING] SELL failed: Could not move part from buy to sell array. Buy parts: {len(trading_state['buy_parts'])}, Sell parts: {len(trading_state['sell_parts'])} at {current_price}. Base price unchanged: {trading_state['base_price']}")
+                    # Don't move parts or update base price on failure
 
         except Exception as e:
             print(f"Error in trading algorithm: {e}")
