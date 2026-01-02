@@ -675,7 +675,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                     if trading_state['position'] > 0:
                         trading_state['avg_purchase_price'] = (old_position_value + new_purchase_value) / trading_state['position']
 
-                    print(f"[TRADING] BUY: Moved part from sell to buy array. Buy parts: {len(trading_state['buy_parts'])}, Sell parts: {len(trading_state['sell_parts'])} at {current_price}. New base price: {trading_state['base_price']}")
+                    print(f"[TRADING] BUY: Used buy opportunity. Remaining buy opportunities: {len(trading_state['buy_parts'])}, Remaining sell opportunities: {len(trading_state['sell_parts'])} at {current_price}. New base price: {trading_state['base_price']}")
 
                     # Record transaction
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -689,7 +689,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         'base_price_at_execution': current_base_price,
                         'pnl': None,  # No P&L for buy transactions
                         'total_parts': parts,
-                        'part_number': len(trading_state['buy_parts']),  # Current number of bought parts
+                        'part_number': parts - len(trading_state['buy_parts']),  # Number of buy operations performed (total parts - remaining buy opportunities)
                         'execution_price': current_price,
                         'status': 'completed',  # New field to track transaction status
                         'buy_parts_count': len(trading_state['buy_parts']),
@@ -703,7 +703,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         trading_state['transaction_history'] = trading_state['transaction_history'][-20:]
                 else:
                     # Transaction failed, don't update base price or other state
-                    print(f"[TRADING] BUY failed: Could not move part from sell to buy array. Buy parts: {len(trading_state['buy_parts'])}, Sell parts: {len(trading_state['sell_parts'])} at {current_price}. Base price unchanged: {trading_state['base_price']}")
+                    print(f"[TRADING] BUY failed: Could not use buy opportunity. Remaining buy opportunities: {len(trading_state['buy_parts'])}, Remaining sell opportunities: {len(trading_state['sell_parts'])} at {current_price}. Base price unchanged: {trading_state['base_price']}")
                     # Don't move parts or update base price on failure
 
             elif should_sell:
@@ -798,7 +798,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         trading_state['position'] = 0
                         trading_state['avg_purchase_price'] = 0
 
-                    print(f"[TRADING] SELL: Moved part from buy to sell array. Buy parts: {len(trading_state['buy_parts'])}, Sell parts: {len(trading_state['sell_parts'])} at {current_price}. New base price: {trading_state['base_price']}, Total profit: {trading_state['total_profit']}")
+                    print(f"[TRADING] SELL: Used sell opportunity. Remaining buy opportunities: {len(trading_state['buy_parts'])}, Remaining sell opportunities: {len(trading_state['sell_parts'])} at {current_price}. New base price: {trading_state['base_price']}, Total profit: {trading_state['total_profit']}")
 
                     # Record transaction
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -812,7 +812,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         'base_price_at_execution': current_base_price,
                         'pnl': total_profit,  # P&L for sell transactions
                         'total_parts': parts,
-                        'part_number': len(trading_state['sell_parts']),  # Current number of sold parts
+                        'part_number': parts - len(trading_state['sell_parts']),  # Number of sell operations performed (total parts - remaining sell opportunities)
                         'execution_price': current_price,
                         'status': 'completed',  # New field to track transaction status
                         'buy_parts_count': len(trading_state['buy_parts']),
@@ -826,7 +826,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         trading_state['transaction_history'] = trading_state['transaction_history'][-20:]
                 else:
                     # Transaction failed, don't update base price or other state
-                    print(f"[TRADING] SELL failed: Could not move part from buy to sell array. Buy parts: {len(trading_state['buy_parts'])}, Sell parts: {len(trading_state['sell_parts'])} at {current_price}. Base price unchanged: {trading_state['base_price']}")
+                    print(f"[TRADING] SELL failed: Could not use sell opportunity. Remaining buy opportunities: {len(trading_state['buy_parts'])}, Remaining sell opportunities: {len(trading_state['sell_parts'])} at {current_price}. Base price unchanged: {trading_state['base_price']}")
                     # Don't move parts or update base price on failure
 
         except Exception as e:
