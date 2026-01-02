@@ -488,8 +488,8 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
     trading_state['part_size'] = part_size
 
     # Initialize buy and sell arrays with the specified number of parts
-    # Initially, all parts are in the sell array (ready to sell)
-    trading_state['buy_parts'] = []  # No parts bought initially
+    # Initially, both arrays have all parts (ready for either buy or sell)
+    trading_state['buy_parts'] = list(range(parts))  # All parts available for buying initially
     trading_state['sell_parts'] = list(range(parts))  # All parts available for selling initially
 
     # Store trading mode and network
@@ -657,11 +657,13 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                     # Only update state if transaction was successful
                     trading_state['last_action'] = 'buy'
 
-                    # Move a part from sell array to buy array
-                    if len(trading_state['sell_parts']) > 0:
-                        # Remove a part from sell array and add it to buy array
-                        moved_part = trading_state['sell_parts'].pop()  # Remove from sell array
-                        trading_state['buy_parts'].append(moved_part)  # Add to buy array
+                    # When buying: reduce buy_parts by 1 (use a buy opportunity), increase sell_parts by 1 (create a sell opportunity)
+                    if len(trading_state['buy_parts']) > 0:
+                        # Remove a part from buy array (use up a buy opportunity)
+                        trading_state['buy_parts'].pop()  # Remove from buy array
+                        # Add a part to sell array (create a new sell opportunity)
+                        if len(trading_state['sell_parts']) < parts:
+                            trading_state['sell_parts'].append(len(trading_state['sell_parts']))  # Add to sell array
 
                     # Update base price to execution price (only on successful transaction)
                     trading_state['base_price'] = current_price
@@ -772,11 +774,13 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                     # Only update state if transaction was successful
                     trading_state['last_action'] = 'sell'
 
-                    # Move a part from buy array to sell array
-                    if len(trading_state['buy_parts']) > 0:
-                        # Remove a part from buy array and add it to sell array
-                        moved_part = trading_state['buy_parts'].pop()  # Remove from buy array
-                        trading_state['sell_parts'].append(moved_part)  # Add to sell array
+                    # When selling: reduce sell_parts by 1 (use a sell opportunity), increase buy_parts by 1 (create a buy opportunity)
+                    if len(trading_state['sell_parts']) > 0:
+                        # Remove a part from sell array (use up a sell opportunity)
+                        trading_state['sell_parts'].pop()  # Remove from sell array
+                        # Add a part to buy array (create a new buy opportunity)
+                        if len(trading_state['buy_parts']) < parts:
+                            trading_state['buy_parts'].append(len(trading_state['buy_parts']))  # Add to buy array
 
                     # Update base price to execution price (only on successful transaction)
                     trading_state['base_price'] = current_price
