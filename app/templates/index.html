@@ -124,6 +124,28 @@
                 </div>
             </div>
 
+            <!-- Pending Trade Approvals Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Pending Trade Approvals</h5>
+                            <span class="badge bg-primary" id="pendingApprovalsCount">0</span>
+                        </div>
+                        <div class="card-body">
+                            <div id="pendingApprovalsContainer">
+                                <div id="noPendingApprovals" class="text-center py-3 text-muted">
+                                    No pending trade approvals
+                                </div>
+                                <div id="pendingApprovalsList" style="display: none;">
+                                    <!-- Pending approvals will be listed here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="row">
                 <!-- Trading Configuration -->
                 <div class="col-lg-4">
@@ -702,86 +724,69 @@
                 const response = await fetch('/api/pending-approvals');
                 const data = await response.json();
 
-                if (data.approvals && data.approvals.length > 0) {
-                    // Show the first pending approval
-                    const approval = data.approvals[0];
-                    if (approval.result === 'pending') {
-                        showTradeApprovalModal(approval);
-                    }
+                if (data.approvals && Array.isArray(data.approvals)) {
+                    updatePendingApprovalsList(data.approvals);
                 }
             } catch (error) {
                 console.error('Error checking pending approvals:', error);
             }
         }
 
-        // Function to show trade approval modal
-        function showTradeApprovalModal(approval) {
-            // Create modal if it doesn't exist
-            let modal = document.getElementById('tradeApprovalModal');
-            if (!modal) {
-                // Create modal HTML
-                const modalHtml = `
-                    <div class="modal fade" id="tradeApprovalModal" tabindex="-1" aria-labelledby="tradeApprovalModalLabel" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="tradeApprovalModalLabel">Trade Approval Required</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        // Function to update the pending approvals list
+        function updatePendingApprovalsList(approvals) {
+            const pendingList = document.getElementById('pendingApprovalsList');
+            const noPendingDiv = document.getElementById('noPendingApprovals');
+            const countBadge = document.getElementById('pendingApprovalsCount');
+
+            // Update the count badge
+            countBadge.textContent = approvals.length;
+
+            if (approvals.length === 0) {
+                // Show "no pending approvals" message
+                pendingList.style.display = 'none';
+                noPendingDiv.style.display = 'block';
+            } else {
+                // Show the list of pending approvals
+                noPendingDiv.style.display = 'none';
+                pendingList.style.display = 'block';
+
+                // Clear the current list
+                pendingList.innerHTML = '';
+
+                // Add each pending approval to the list
+                approvals.forEach(approval => {
+                    const approvalCard = document.createElement('div');
+                    approvalCard.className = 'card mb-2';
+                    approvalCard.innerHTML = `
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title">
+                                        <span class="badge bg-${approval.action === 'buy' ? 'success' : 'danger'}">
+                                            ${approval.action.toUpperCase()}
+                                        </span>
+                                        ${approval.amount} ${approval.token}
+                                    </h6>
+                                    <p class="card-text">
+                                        Price: $${approval.price.toFixed(8)} |
+                                        Time: ${new Date(approval.timestamp).toLocaleTimeString()} |
+                                        ID: ${approval.id.substring(0, 8)}...
+                                    </p>
                                 </div>
-                                <div class="modal-body">
-                                    <p>Do you want to approve this trade?</p>
-                                    <div class="mb-2">
-                                        <strong>Action:</strong> <span id="approvalAction"></span>
-                                    </div>
-                                    <div class="mb-2">
-                                        <strong>Amount:</strong> <span id="approvalAmount"></span>
-                                    </div>
-                                    <div class="mb-2">
-                                        <strong>Token:</strong> <span id="approvalToken"></span>
-                                    </div>
-                                    <div class="mb-2">
-                                        <strong>Price:</strong> <span id="approvalPrice"></span>
-                                    </div>
-                                    <div class="mb-2">
-                                        <strong>Time:</strong> <span id="approvalTime"></span>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-danger" id="rejectTradeBtn">Reject</button>
-                                    <button type="button" class="btn btn-success" id="approveTradeBtn">Approve</button>
+                                <div>
+                                    <button class="btn btn-sm btn-success me-1" onclick="approveTrade('${approval.id}')">
+                                        Approve
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" onclick="rejectTrade('${approval.id}')">
+                                        Reject
+                                    </button>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                `;
-                document.body.insertAdjacentHTML('beforeend', modalHtml);
-                modal = document.getElementById('tradeApprovalModal');
-
-                // Add event listeners for approve/reject buttons
-                document.getElementById('approveTradeBtn').addEventListener('click', async () => {
-                    const tradeId = document.getElementById('approvalAction').dataset.tradeId;
-                    await approveTrade(tradeId);
-                    bootstrap.Modal.getInstance(modal).hide();
-                });
-
-                document.getElementById('rejectTradeBtn').addEventListener('click', async () => {
-                    const tradeId = document.getElementById('approvalAction').dataset.tradeId;
-                    await rejectTrade(tradeId);
-                    bootstrap.Modal.getInstance(modal).hide();
+                    `;
+                    pendingList.appendChild(approvalCard);
                 });
             }
-
-            // Update modal content with approval data
-            document.getElementById('approvalAction').textContent = approval.action.toUpperCase();
-            document.getElementById('approvalAction').dataset.tradeId = approval.id;
-            document.getElementById('approvalAmount').textContent = approval.amount;
-            document.getElementById('approvalToken').textContent = approval.token;
-            document.getElementById('approvalPrice').textContent = '$' + approval.price.toFixed(8);
-            document.getElementById('approvalTime').textContent = new Date(approval.timestamp).toLocaleString();
-
-            // Show the modal
-            const bsModal = new bootstrap.Modal(modal);
-            bsModal.show();
         }
 
         // Function to approve a trade
@@ -798,6 +803,8 @@
                 const data = await response.json();
                 if (data.success) {
                     console.log('Trade approved:', tradeId);
+                    // Refresh the pending approvals list after approval
+                    await checkPendingApprovals();
                 } else {
                     console.error('Error approving trade:', data.message);
                 }
@@ -820,6 +827,8 @@
                 const data = await response.json();
                 if (data.success) {
                     console.log('Trade rejected:', tradeId);
+                    // Refresh the pending approvals list after rejection
+                    await checkPendingApprovals();
                 } else {
                     console.error('Error rejecting trade:', data.message);
                 }
