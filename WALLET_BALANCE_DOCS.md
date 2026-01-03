@@ -224,6 +224,8 @@ The wallet address is derived from the private key stored in the `.env` file usi
 - Balance checking occurs before each buy/sell operation to prevent failed transactions
 - The bot checks both the token being traded and SOL for transaction fees
 - If SOL balance falls below the reserved amount (0.005 SOL), trades are blocked
+- Buy operations spend a fixed dollar amount per part to purchase tokens
+- Sell operations sell tokens worth a fixed dollar amount per part at current market price
 
 ## Why Helius is Required
 - Public RPC: ❌ 403, rate limits, bot blocking

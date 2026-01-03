@@ -39,6 +39,8 @@ GET https://quote-api.jup.ag/v6/quote?inputMint=So111111111111111111111111111111
 - The trading algorithm uses dual arrays (buy_parts and sell_parts) to manage trading opportunities
 - When buying: buy_parts decreases by 1, sell_parts increases by 1 (creating future sell opportunities)
 - When selling: sell_parts decreases by 1, buy_parts increases by 1 (creating future buy opportunities)
+- Buy operations spend a fixed dollar amount (trade_amount/number_of_parts) to purchase tokens
+- Sell operations sell tokens worth a fixed dollar amount (trade_amount/number_of_parts) at current market price
 - Transaction fees are reserved (0.005 SOL minimum) and profit calculations account for fees ($0.02 per transaction)
 - For simulation purposes, we won't execute real swaps
 - We will use the quote API to get pricing information
