@@ -692,7 +692,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         'base_price_at_execution': current_base_price,
                         'pnl': None,  # No P&L for buy transactions
                         'total_parts': parts,
-                        'part_number': buy_operations_completed,  # Number of buy operations completed (captured before array modification)
+                        'part_number': buy_operations_completed + 1,  # Number of buy operations completed + 1 to start from 1 (captured before array modification)
                         'execution_price': current_price,
                         'status': 'completed',  # New field to track transaction status
                         'buy_parts_count': len(trading_state['buy_parts']),
@@ -823,7 +823,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         'base_price_at_execution': current_base_price,
                         'pnl': total_profit,  # P&L for sell transactions (after fee deduction)
                         'total_parts': parts,
-                        'part_number': sell_operations_completed,  # Number of sell operations completed (captured before array modification)
+                        'part_number': sell_operations_completed + 1,  # Number of sell operations completed + 1 to start from 1 (captured before array modification)
                         'execution_price': current_price,
                         'status': 'completed',  # New field to track transaction status
                         'buy_parts_count': len(trading_state['buy_parts']),
