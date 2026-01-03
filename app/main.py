@@ -697,7 +697,8 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         'status': 'completed',  # New field to track transaction status
                         'buy_parts_count': len(trading_state['buy_parts']),
                         'sell_parts_count': len(trading_state['sell_parts']),
-                        'fee_deducted': 0  # No fee deducted for buy transactions (fee affects profit on sell)
+                        'fee_deducted': 0,  # No fee deducted for buy transactions (fee affects profit on sell)
+                        'dollar_value': part_size  # Dollar value of the transaction
                     }
 
                     trading_state['transaction_history'].append(tx_record)
@@ -714,12 +715,16 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                 # SELL operation
                 transaction_successful = False
 
+                # Calculate the actual amount to sell based on dollar value, not fixed quantity
+                # Convert the part_size (dollar value) to token amount based on current price
+                actual_sell_amount = part_size / current_price  # Convert dollar value to token amount
+
                 # Execute real transaction if on mainnet, otherwise simulate
                 if network.lower() == "mainnet":
                     # Check trading mode
                     if trading_mode == "user":
                         # In user mode, we need to wait for user confirmation
-                        print(f"[USER MODE] Sell intent: {part_size} of {get_token_symbol(selected_token)} at ${current_price}")
+                        print(f"[USER MODE] Sell intent: {actual_sell_amount} of {get_token_symbol(selected_token)} at ${current_price} (worth ${part_size:.2f})")
 
                         # Create a trade approval request
                         import uuid
@@ -767,11 +772,11 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                             transaction_successful = False
                             print(f"[USER MODE] Timeout waiting for approval for sell intent")
                     else:  # automatic mode
-                        transaction_result = execute_sell_transaction(current_price, selected_token, part_size, network)
+                        transaction_result = execute_sell_transaction(current_price, selected_token, actual_sell_amount, network)
                         transaction_successful = transaction_result["success"]
                 else:
                     # For devnet/testnet, just simulate
-                    simulate_sell(current_price, selected_token, part_size)
+                    simulate_sell(current_price, selected_token, actual_sell_amount)
                     transaction_successful = True  # Simulation is always "successful"
 
                 if transaction_successful:
@@ -819,7 +824,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         'token': selected_token,
                         'token_symbol': get_token_symbol(selected_token),
                         'price': current_price,
-                        'amount': part_size,
+                        'amount': actual_sell_amount,  # Use actual amount sold (dollar value converted to tokens)
                         'base_price_at_execution': current_base_price,
                         'pnl': total_profit,  # P&L for sell transactions (after fee deduction)
                         'total_parts': parts,
@@ -828,7 +833,8 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         'status': 'completed',  # New field to track transaction status
                         'buy_parts_count': len(trading_state['buy_parts']),
                         'sell_parts_count': len(trading_state['sell_parts']),
-                        'fee_deducted': 0.02  # Fee deducted from profit
+                        'fee_deducted': 0.02,  # Fee deducted from profit
+                        'dollar_value': part_size  # Dollar value of the transaction
                     }
 
                     trading_state['transaction_history'].append(tx_record)
