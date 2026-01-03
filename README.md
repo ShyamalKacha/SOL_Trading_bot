@@ -7,11 +7,16 @@ A web-based automated trading bot that uses Jupiter's Quote API to execute trade
 - Connect to Phantom wallet for token management
 - Set base price and percentage thresholds for automated trading
 - Real-time price tracking using Jupiter API
-- Automated buying when price drops below base price
-- Automated selling when price exceeds upper or lower thresholds
-- Transaction history logging
+- Dual array system (buy_parts and sell_parts) for managing trading opportunities
+- Automated buying when price drops below base price and buy opportunities are available
+- Automated selling when price exceeds upper or lower thresholds and sell opportunities are available
+- Transaction history logging with accurate part numbering
 - Support for SOL, wSOL, and USDC tokens
 - Trade simulation mode (no actual transactions executed)
+- Balance checking before executing trades to ensure sufficient funds
+- Reserved SOL balance (0.005 SOL minimum) for transaction fees
+- Profit calculation accounting for transaction fees ($0.02 per transaction)
+- Configurable slippage tolerance (default 0.5%)
 
 ## Requirements
 
@@ -64,15 +69,31 @@ If you prefer to set up manually:
 5. Set your up percentage (the percentage above base price to sell)
 6. Set your down percentage (the percentage below base price to sell)
 7. Set the trade amount (how much of the token to trade per transaction)
-8. Click "Start Trading" to begin the automated trading
+8. Set the number of parts (determines how many buy and sell opportunities are available)
+9. Click "Start Trading" to begin the automated trading
+
+### Trading Parameters Explained
+- **Base Price**: The reference price for determining buy/sell thresholds (automatically set to current market price when trading starts)
+- **Up Percentage**: Sell when price rises above (base price * (1 + up percentage))
+- **Down Percentage**: Buy when price falls below (base price * (1 - down percentage))
+- **Trade Amount**: Total amount to trade, divided by number of parts for each transaction
+- **Number of Parts**: Total trading opportunities available (split between buy and sell arrays)
+- **Network**: Select between mainnet (real transactions) or devnet/testnet (simulation)
+- **Trading Mode**: Automatic (no approval needed) or User Approval (requires manual confirmation)
 
 ## Trading Logic
 
-The bot follows this trading strategy:
+The bot follows this trading strategy with dual arrays for buy/sell operations:
 
-1. If the current price is lower than the base price and the last action was not a buy, it will buy the token
-2. If the current price is higher than (base price * (1 + up percentage)) OR lower than (base price * (1 - down percentage)) and the last action was not a sell, it will sell the token
-3. The bot will not perform the same action consecutively (e.g., it won't buy twice in a row or sell twice in a row)
+1. The bot uses two arrays (buy_parts and sell_parts) each initialized with the number of parts specified by the user
+2. When the current price is lower than the base price and there are buy opportunities available (buy_parts > 0), it will buy the token
+3. When the current price is higher than (base price * (1 + up percentage)) OR lower than (base price * (1 - down percentage)) and there are sell opportunities available (sell_parts > 0), it will sell the token
+4. When a buy operation occurs: buy_parts decreases by 1, sell_parts increases by 1 (creating a future sell opportunity)
+5. When a sell operation occurs: sell_parts decreases by 1, buy_parts increases by 1 (creating a future buy opportunity)
+6. The total number of parts remains constant throughout trading
+7. The bot can switch between buy and sell operations based on price conditions as long as opportunities are available in the respective arrays
+8. Transaction fees are reserved (0.005 SOL minimum) and profit calculations account for fees ($0.02 per transaction)
+9. Balance checking ensures sufficient funds are available before executing trades
 
 ## Project Structure
 

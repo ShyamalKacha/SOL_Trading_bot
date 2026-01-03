@@ -216,6 +216,14 @@ The wallet address is derived from the private key stored in the `.env` file usi
 - Private keys are loaded from environment variables and never logged
 - All RPC calls are made securely over HTTPS
 - Token balances are read-only operations that don't require private key access
+- Balance checking is performed before each trade to ensure sufficient funds
+- Minimum SOL balance (0.005 SOL) is reserved for transaction fees
+
+## Trading Integration
+- The trading bot uses wallet balance information to validate sufficient funds before executing trades
+- Balance checking occurs before each buy/sell operation to prevent failed transactions
+- The bot checks both the token being traded and SOL for transaction fees
+- If SOL balance falls below the reserved amount (0.005 SOL), trades are blocked
 
 ## Why Helius is Required
 - Public RPC: ❌ 403, rate limits, bot blocking

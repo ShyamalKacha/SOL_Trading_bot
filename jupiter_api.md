@@ -35,6 +35,11 @@ GET https://quote-api.jup.ag/v6/quote?inputMint=So111111111111111111111111111111
 - `prioritizationFeeLamports` (optional): Priority fee in lamports
 
 ### Notes
+- Default slippage tolerance is set to 50 basis points (0.5%)
+- The trading algorithm uses dual arrays (buy_parts and sell_parts) to manage trading opportunities
+- When buying: buy_parts decreases by 1, sell_parts increases by 1 (creating future sell opportunities)
+- When selling: sell_parts decreases by 1, buy_parts increases by 1 (creating future buy opportunities)
+- Transaction fees are reserved (0.005 SOL minimum) and profit calculations account for fees ($0.02 per transaction)
 - For simulation purposes, we won't execute real swaps
 - We will use the quote API to get pricing information
-- SOL mint address: So11111111111111111111111111111111111111112
+- SOL mint address: So111111111111111111111111111111111111111112
