@@ -1508,40 +1508,30 @@ def simulate_sell(price, token, amount):
 @app.route('/api/add-funds', methods=['POST'])
 @require_login
 def add_funds():
-    """Add funds to user's wallet - this would typically be handled by transferring from user's external wallet"""
-    user_id = session['user_id']
-    data = request.get_json()
-    amount = data.get('amount', 0)
+    """This endpoint is now deprecated. Funds are added when user sends to their deposit address."""
+    return jsonify({
+        "success": False,
+        "message": "This endpoint is deprecated. Use the deposit address to add funds."
+    }), 400
 
-    if amount <= 0:
-        return jsonify({"success": False, "message": "Amount must be greater than 0"}), 400
-
+@app.route('/api/deposit-address', methods=['GET'])
+@require_login
+def get_deposit_address():
+    """Get the user's deposit address"""
     try:
-        # In a real implementation, this would involve:
-        # 1. Generating a deposit address for the user
-        # 2. Monitoring for incoming transactions
-        # 3. Updating the balance when funds are received
-
-        # For now, we'll simulate the process
+        user_id = session['user_id']
         wallet = Wallet.find_by_user_id(user_id)
+
         if not wallet:
             return jsonify({"success": False, "message": "Wallet not found"}), 404
 
-        # Update the wallet balance (in a real implementation, this would happen after actual deposit)
-        # For simulation purposes, we'll just update the balance
-        current_balance = wallet.balance
-        if 'SOL' not in current_balance:
-            current_balance['SOL'] = 0
-        current_balance['SOL'] += amount
-        wallet.update_balance(current_balance)
-
         return jsonify({
             "success": True,
-            "message": f"Successfully added {amount} SOL to your wallet. Please send funds to your deposit address."
+            "deposit_address": wallet.public_key
         })
     except Exception as e:
-        print(f"Error adding funds: {e}")
-        return jsonify({"success": False, "message": f"Error adding funds: {str(e)}"}), 500
+        print(f"Error getting deposit address: {e}")
+        return jsonify({"success": False, "message": f"Error getting deposit address: {str(e)}"}), 500
 
 @app.route('/api/withdraw-funds', methods=['POST'])
 @require_login
