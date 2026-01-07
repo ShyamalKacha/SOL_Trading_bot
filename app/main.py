@@ -144,55 +144,53 @@ def get_user_pending_approvals(user_id):
     return user_pending_approvals[user_id], user_approvals_locks[user_id], user_approvals_queues[user_id]
 
 def send_otp_email(email, otp):
-    """Send OTP to user's email using Brevo (Sendinblue)"""
+    """Send OTP to user's email using Gmail SMTP"""
     try:
-        # Using Brevo (Sendinblue) API
-        api_key = os.getenv('BREVO_API_KEY')
-        if not api_key:
-            print("BREVO_API_KEY not set in environment")
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+
+        # Get Gmail credentials from environment
+        gmail_email = os.getenv('GMAIL_EMAIL')
+        gmail_app_password = os.getenv('GMAIL_APP_PASSWORD')
+
+        if not gmail_email or not gmail_app_password:
+            print("GMAIL_EMAIL or GMAIL_APP_PASSWORD not set in environment")
             return False
-            
-        headers = {
-            'api-key': api_key,
-            'Content-Type': 'application/json'
-        }
-        
-        payload = {
-            "sender": {
-                "name": "Solana Trading Bot",
-                "email": os.getenv('SENDER_EMAIL', 'no-reply@yourdomain.com')
-            },
-            "to": [
-                {
-                    "email": email
-                }
-            ],
-            "subject": "Your OTP for Registration",
-            "htmlContent": f"""
-            <html>
-            <body>
-                <h2>Solana Trading Bot Registration</h2>
-                <p>Your OTP for registration is: <strong>{otp}</strong></p>
-                <p>This OTP will expire in 10 minutes.</p>
-                <p>If you didn't request this, please ignore this email.</p>
-            </body>
-            </html>
-            """
-        }
-        
-        response = requests.post(
-            'https://api.brevo.com/v3/smtp/email',
-            headers=headers,
-            json=payload
-        )
-        
-        if response.status_code == 201:
-            print(f"OTP sent successfully to {email}")
-            return True
-        else:
-            print(f"Failed to send OTP: {response.status_code} - {response.text}")
-            return False
-            
+
+        # Create message
+        msg = MIMEMultipart()
+        msg['From'] = gmail_email
+        msg['To'] = email
+        msg['Subject'] = "Your OTP for Registration"
+
+        # Create HTML content
+        html_content = f"""
+        <html>
+        <body>
+            <h2>Solana Trading Bot Registration</h2>
+            <p>Your OTP for registration is: <strong>{otp}</strong></p>
+            <p>This OTP will expire in 10 minutes.</p>
+            <p>If you didn't request this, please ignore this email.</p>
+        </body>
+        </html>
+        """
+
+        msg.attach(MIMEText(html_content, 'html'))
+
+        # Connect to Gmail SMTP server
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()  # Enable encryption
+        server.login(gmail_email, gmail_app_password)
+
+        # Send email
+        text = msg.as_string()
+        server.sendmail(gmail_email, email, text)
+        server.quit()
+
+        print(f"OTP sent successfully to {email}")
+        return True
+
     except Exception as e:
         print(f"Error sending OTP: {e}")
         return False

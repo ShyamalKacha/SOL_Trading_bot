@@ -16,7 +16,7 @@ A comprehensive multi-user Solana trading bot with wallet management and automat
 - Python 3.8+
 - Solana account with some SOL for transaction fees
 - Jupiter API key
-- Brevo (Sendinblue) API key for email OTP
+- Gmail account with app password for email OTP
 - Helius API key (optional but recommended)
 
 ## Installation
@@ -60,9 +60,9 @@ JUPITER_API_KEY=your-jupiter-api-key
 # Helius API (optional but recommended for better RPC performance)
 HELIUS_API_KEY=your-helius-api-key
 
-# Brevo (Sendinblue) API for sending OTP emails
-BREVO_API_KEY=your-brevo-api-key
-SENDER_EMAIL=your-sender-email@example.com
+# Gmail SMTP for sending OTP emails
+GMAIL_EMAIL=your-gmail@gmail.com
+GMAIL_APP_PASSWORD=your-gmail-app-password
 
 # Encryption key for storing private keys securely
 ENCRYPTION_KEY=your-encryption-key-generated-using-python-cryptography
