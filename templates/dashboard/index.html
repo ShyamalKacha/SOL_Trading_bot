@@ -1,121 +1,81 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solana Trading Bot</title>
+    <title>Dashboard - Solana Trading Bot</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #f8f9fa;
-        }
-
-        .card {
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 5px;
-        }
-
-        .status-active {
-            background-color: #28a745;
-        }
-
-        .status-inactive {
-            background-color: #dc3545;
-        }
-
-        #transactionHistory {
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .wallet-address {
-            font-family: monospace;
-            font-size: 0.9rem;
-            background: #f8f9fa;
-            padding: 8px 12px;
-            border-radius: 4px;
-            word-break: break-all;
-            border: 1px solid #dee2e6;
-        }
-
-        .copy-btn {
-            cursor: pointer;
-        }
-
-        #tokenBalancesContainer {
-            max-height: 200px;
-            overflow-y: auto;
-        }
-    </style>
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
+<body class="bg-dark text-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/dashboard">Solana Trading Bot</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/dashboard">Dashboard</a>
+                <a class="nav-link" href="/wallet">Wallet</a>
+                <a class="nav-link" href="/trading">Trading</a>
+                <a class="nav-link" href="/api/logout">Logout</a>
+            </div>
+        </div>
+    </nav>
 
-<body>
-    <div class="container mt-5">
+    <div class="container mt-4">
         <div class="row">
-            <div class="col-lg-12">
-                <h1 class="text-center mb-4">Solana Trading Bot</h1>
-                <p class="text-center text-muted mb-5">Automated trading based on your price thresholds</p>
+            <div class="col-12">
+                <h1>Trading Dashboard</h1>
+                <p class="text-muted">Welcome to your personalized trading dashboard</p>
             </div>
+        </div>
 
-            <!-- Wallet Information Section -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Wallet Information</h5>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="refreshWalletData()"
-                                title="Refresh Balances">
-                                ↻ Refresh
-                            </button>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <!-- Wallet Address -->
-                                <div class="col-md-6 mb-3 mb-md-0">
-                                    <label class="form-label">Wallet Address</label>
-                                    <div class="input-group">
-                                        <div class="wallet-address flex-grow-1" id="walletAddress">
-                                            Loading...
-                                        </div>
-                                        <button class="btn btn-outline-secondary copy-btn" type="button"
-                                            onclick="copyWalletAddress()" title="Copy Address">
-                                            Copy
-                                        </button>
+        <!-- Wallet Information Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card bg-light text-dark">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Your Wallet</h5>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="refreshWalletData()" title="Refresh Balances">
+                            ↻ Refresh
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Wallet Address -->
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <label class="form-label">Wallet Address</label>
+                                <div class="input-group">
+                                    <div class="wallet-address flex-grow-1" id="walletAddress">
+                                        Loading...
                                     </div>
-                                    <div id="walletError" class="text-danger small mt-1" style="display: none;"></div>
+                                    <button class="btn btn-outline-secondary copy-btn" type="button"
+                                        onclick="copyWalletAddress()" title="Copy Address">
+                                        Copy
+                                    </button>
                                 </div>
-                                <!-- Token Balances -->
-                                <div class="col-md-6">
-                                    <label class="form-label">Token Balances</label>
-                                    <div id="tokenBalancesContainer" class="border rounded p-2 bg-light">
-                                        <div id="tokenBalancesLoading" class="text-center py-2 text-muted">
-                                            <span class="spinner-border spinner-border-sm" role="status"></span>
-                                            Loading balances...
-                                        </div>
-                                        <div id="tokenBalances" style="display: none;">
-                                            <table class="table table-sm table-striped mb-0">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Token</th>
-                                                        <th class="text-end">Balance</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody id="tokenBalancesList">
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        <div id="noTokens" class="text-center py-2 text-muted" style="display: none;">
-                                            No tokens found in wallet
-                                        </div>
+                                <div id="walletError" class="text-danger small mt-1" style="display: none;"></div>
+                            </div>
+                            <!-- Token Balances -->
+                            <div class="col-md-6">
+                                <label class="form-label">Token Balances</label>
+                                <div id="tokenBalancesContainer" class="border rounded p-2 bg-light">
+                                    <div id="tokenBalancesLoading" class="text-center py-2 text-muted">
+                                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                                        Loading balances...
+                                    </div>
+                                    <div id="tokenBalances" style="display: none;">
+                                        <table class="table table-sm table-striped mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Token</th>
+                                                    <th class="text-end">Balance</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tokenBalancesList">
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div id="noTokens" class="text-center py-2 text-muted" style="display: none;">
+                                        No tokens found in wallet
                                     </div>
                                 </div>
                             </div>
@@ -123,77 +83,92 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Pending Trade Approvals Section -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Pending Trade Approvals</h5>
-                            <span class="badge bg-primary" id="pendingApprovalsCount">0</span>
-                        </div>
-                        <div class="card-body">
-                            <div id="pendingApprovalsContainer">
-                                <div id="noPendingApprovals" class="text-center py-3 text-muted">
-                                    No pending trade approvals
+        <!-- Wallet Management Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card bg-light text-dark">
+                    <div class="card-header">
+                        <h5>Wallet Management</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Add Funds</h6>
+                                <div class="mb-3">
+                                    <label for="addAmount" class="form-label">Amount to Add</label>
+                                    <input type="number" class="form-control" id="addAmount" placeholder="Enter amount" min="0" step="0.01">
                                 </div>
-                                <div id="pendingApprovalsList" style="display: none;">
-                                    <!-- Pending approvals will be listed here -->
+                                <button class="btn btn-success" onclick="addFunds()">Add Funds</button>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Withdraw Funds</h6>
+                                <div class="mb-3">
+                                    <label for="withdrawAddress" class="form-label">Destination Address</label>
+                                    <input type="text" class="form-control" id="withdrawAddress" placeholder="Enter wallet address">
                                 </div>
+                                <div class="mb-3">
+                                    <label for="withdrawAmount" class="form-label">Amount to Withdraw</label>
+                                    <input type="number" class="form-control" id="withdrawAmount" placeholder="Enter amount" min="0" step="0.01">
+                                </div>
+                                <button class="btn btn-danger" onclick="withdrawFunds()">Withdraw Funds</button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="row">
-                <!-- Trading Configuration -->
-                <div class="col-lg-4">
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5>Trading Configuration</h5>
+        <!-- Trading Configuration -->
+        <div class="row">
+            <!-- Trading Configuration -->
+            <div class="col-lg-4">
+                <div class="card mb-4 bg-light text-dark">
+                    <div class="card-header">
+                        <h5>Trading Configuration</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="networkSelect" class="form-label">Network</label>
+                            <select class="form-select" id="networkSelect">
+                                <option value="mainnet">Mainnet</option>
+                                <option value="devnet">Devnet</option>
+                                <option value="testnet">Testnet</option>
+                            </select>
                         </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <label for="networkSelect" class="form-label">Network</label>
-                                <select class="form-select" id="networkSelect">
-                                    <option value="mainnet">Mainnet</option>
-                                    <option value="devnet">Devnet</option>
-                                    <option value="testnet">Testnet</option>
-                                </select>
-                            </div>
 
-                            <div class="mb-3">
-                                <label for="tradingModeSelect" class="form-label">Trading Mode</label>
-                                <select class="form-select" id="tradingModeSelect">
-                                    <option value="automatic">Automatic</option>
-                                    <option value="user">User Approval</option>
-                                </select>
-                            </div>
+                        <div class="mb-3">
+                            <label for="tradingModeSelect" class="form-label">Trading Mode</label>
+                            <select class="form-select" id="tradingModeSelect">
+                                <option value="automatic">Automatic</option>
+                                <option value="user">User Approval</option>
+                            </select>
+                        </div>
 
-                            <div class="mb-3">
-                                <label for="selectedToken" class="form-label">Select Token (or enter custom
-                                    below)</label>
-                                <select class="form-select" id="selectedToken">
-                                    {% for token in tokens %}
-                                    <option value="{{ token.mint }}">{{ token.symbol }} - {{ token.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
+                        <div class="mb-3">
+                            <label for="selectedToken" class="form-label">Select Token (or enter custom below)</label>
+                            <select class="form-select" id="selectedToken">
+                                <option value="So11111111111111111111111111111111111111112">SOL - Solana</option>
+                                <option value="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v">USDC - USD Coin</option>
+                                <option value="4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R">RAY - Raydium</option>
+                                <option value="JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN">JUP - Jupiter</option>
+                            </select>
+                        </div>
 
-                            <div class="mb-3">
-                                <label for="customTokenAddress" class="form-label">Or Enter Custom Token Address</label>
-                                <input type="text" class="form-control" id="customTokenAddress"
-                                    placeholder="Enter token mint address (e.g., So11111111111111111111111111111111111111112 for wSOL/SOL)">
-                                <div class="form-text">Leave empty to use selected token above</div>
-                            </div>
+                        <div class="mb-3">
+                            <label for="customTokenAddress" class="form-label">Or Enter Custom Token Address</label>
+                            <input type="text" class="form-control" id="customTokenAddress"
+                                placeholder="Enter token mint address">
+                            <div class="form-text">Leave empty to use selected token above</div>
                         </div>
                     </div>
                 </div>
+            </div>
 
             <!-- Trading Parameters -->
             <div class="col-lg-4">
-                <div class="card mb-4">
+                <div class="card mb-4 bg-light text-dark">
                     <div class="card-header">
                         <h5>Trading Parameters</h5>
                     </div>
@@ -211,6 +186,7 @@
 
                         <div class="mb-3">
                             <label for="downPercentage" class="form-label">Buy Low Percentage (%)</label>
+                            <div class="form-text">Enter down percentage</div>
                             <input type="number" class="form-control" id="downPercentage" placeholder="Enter down percentage" value="3" min="0" step="0.1">
                         </div>
 
@@ -235,7 +211,7 @@
 
             <!-- Trading Status and Current Price -->
             <div class="col-lg-4">
-                <div class="card mb-4">
+                <div class="card mb-4 bg-light text-dark">
                     <div class="card-header">
                         <h5>Trading Status</h5>
                     </div>
@@ -282,7 +258,7 @@
         <!-- Transaction History -->
         <div class="row">
             <div class="col-12">
-                <div class="card">
+                <div class="card bg-light text-dark">
                     <div class="card-header">
                         <h5>Transaction History</h5>
                     </div>
@@ -330,6 +306,7 @@
         const transactionHistory = document.getElementById('transactionHistory');
         const partsInput = document.getElementById('partsInput');
         let tradingInterval = null;
+        let fullWalletAddress = '';
 
         // Start trading button event
         startTradingBtn.addEventListener('click', async function() {
@@ -517,105 +494,6 @@
 
         // Function to display token balances
         function displayTokenBalances(balances) {
-            if (balances.length === 0) {
-                tokenBalances.innerHTML = '<div class="alert alert-info">No tokens found in wallet</div>';
-                return;
-            }
-
-            let html = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Token</th><th>Balance</th><th>Mint Address</th></tr></thead><tbody>';
-            balances.forEach(balance => {
-                html += `<tr>
-                    <td>
-                        <div>${balance.token}</div>
-                        <small class="text-muted">${balance.name || ''}</small>
-                    </td>
-                    <td class="text-end">${balance.balance ? balance.balance.toFixed(6) : '0.000000'}</td>
-                    <td><small>${balance.mint ? balance.mint.substring(0, 8) + '...' : ''}</small></td>
-                </tr>`;
-            });
-            html += '</tbody></table></div>';
-            tokenBalances.innerHTML = html;
-        }
-
-        // Function to update transaction history table
-        function updateTransactionHistory(transactions) {
-            if (transactions.length === 0) {
-                transactionHistory.innerHTML = '<tr><td colspan="8" class="text-center">No transactions yet</td></tr>';
-                return;
-            }
-
-            let html = '';
-            transactions.slice().reverse().forEach(tx => {
-                // Use token symbol if available, otherwise use first 6 chars of token mint
-                const displayToken = tx.token_symbol || tx.token.substring(0, 6) + '...';
-                // Display price with full precision
-                const displayPrice = parseFloat(tx.price.toFixed(8)).toString();
-                const displayBasePrice = tx.base_price_at_execution ? parseFloat(tx.base_price_at_execution.toFixed(8)).toString() : 'N/A';
-                // Calculate P&L if base price is available
-                let displayPL = 'N/A';
-                let plClass = '';
-                if (tx.base_price_at_execution && tx.action === 'sell') {
-                    const profitLoss = tx.price - tx.base_price_at_execution;
-                    const formattedPL = parseFloat(profitLoss.toFixed(8)).toString();
-                    if (profitLoss >= 0) {
-                        displayPL = '+' + formattedPL;
-                        plClass = 'text-success';  // Positive P&L in green
-                    } else {
-                        displayPL = formattedPL;
-                        plClass = 'text-danger';  // Negative P&L in red
-                    }
-                } else if (tx.action === 'buy') {
-                    displayPL = 'N/A';  // No P&L for buy transactions
-                }
-
-                // Part information - only show for sell operations
-                let displayPart = tx.action === 'buy' ? '-' : 'N/A';
-                if (tx.part_number !== undefined && tx.part_number !== null) {
-                    if (tx.total_parts && tx.total_parts > 1) {
-                        displayPart = `${tx.part_number}/${tx.total_parts}`;
-                    } else {
-                        displayPart = tx.part_number;  // Just show the part number if total is not informative
-                    }
-                } else if (tx.action === 'buy') {
-                    displayPart = '-';  // Show dash for buy operations since they don't consume parts
-                }
-
-                // Transaction status badge
-                const statusBadge = tx.status === 'completed' ? 'success' : 'danger';
-                const statusText = tx.status === 'completed' ? 'Completed' : 'Failed';
-
-                html += `<tr>
-                    <td>${tx.timestamp}</td>
-                    <td><span class="badge bg-${tx.action === 'buy' ? 'success' : 'danger'}">${tx.action}</span></td>
-                    <td>${displayPart}</td>  <!-- Part number -->
-                    <td>${displayToken}</td>
-                    <td>$${displayPrice}</td>  <!-- Current price at execution -->
-                    <td>$${displayBasePrice}</td>  <!-- Base price at execution -->
-                    <td class="${plClass}">$${displayPL}</td>  <!-- Profit/Loss -->
-                    <td>${tx.amount}</td>
-                    <td><span class="badge bg-${statusBadge}">${statusText}</span></td>
-                </tr>`;
-            });
-
-            transactionHistory.innerHTML = html;
-        }
-
-        // Wallet data
-        let fullWalletAddress = '';
-
-        // Function to update UI status indicators
-        function updateStatus(isRunning) {
-            if (isRunning) {
-                statusIndicator.className = 'status-indicator status-active';
-                statusText.textContent = 'Running';
-            } else {
-                statusIndicator.className = 'status-indicator status-inactive';
-                statusText.textContent = 'Stopped';
-            }
-        }
-
-        // Function to display token balances
-        function displayTokenBalances(balances) {
             // Show/hide loading indicator
             document.getElementById('tokenBalancesLoading').style.display = 'none';
             document.getElementById('tokenBalances').style.display = 'block';
@@ -718,123 +596,140 @@
             }
         }
 
-        // Function to check for pending trade approvals
-        async function checkPendingApprovals() {
-            try {
-                const response = await fetch('/api/pending-approvals');
-                const data = await response.json();
-
-                if (data.approvals && Array.isArray(data.approvals)) {
-                    updatePendingApprovalsList(data.approvals);
-                }
-            } catch (error) {
-                console.error('Error checking pending approvals:', error);
+        // Function to add funds to wallet
+        async function addFunds() {
+            const amount = document.getElementById('addAmount').value;
+            
+            if (!amount || parseFloat(amount) <= 0) {
+                alert('Please enter a valid amount');
+                return;
             }
-        }
-
-        // Function to update the pending approvals list
-        function updatePendingApprovalsList(approvals) {
-            const pendingList = document.getElementById('pendingApprovalsList');
-            const noPendingDiv = document.getElementById('noPendingApprovals');
-            const countBadge = document.getElementById('pendingApprovalsCount');
-
-            // Update the count badge
-            countBadge.textContent = approvals.length;
-
-            if (approvals.length === 0) {
-                // Show "no pending approvals" message
-                pendingList.style.display = 'none';
-                noPendingDiv.style.display = 'block';
-            } else {
-                // Show the list of pending approvals
-                noPendingDiv.style.display = 'none';
-                pendingList.style.display = 'block';
-
-                // Clear the current list
-                pendingList.innerHTML = '';
-
-                // Add each pending approval to the list
-                approvals.forEach(approval => {
-                    const approvalCard = document.createElement('div');
-                    approvalCard.className = 'card mb-2';
-                    approvalCard.innerHTML = `
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="card-title">
-                                        <span class="badge bg-${approval.action === 'buy' ? 'success' : 'danger'}">
-                                            ${approval.action.toUpperCase()}
-                                        </span>
-                                        ${approval.amount} ${approval.token}
-                                    </h6>
-                                    <p class="card-text">
-                                        Price: $${approval.price.toFixed(8)} |
-                                        Time: ${new Date(approval.timestamp).toLocaleTimeString()} |
-                                        ID: ${approval.id.substring(0, 8)}...
-                                    </p>
-                                </div>
-                                <div>
-                                    <button class="btn btn-sm btn-success me-1" onclick="approveTrade('${approval.id}')">
-                                        Approve
-                                    </button>
-                                    <button class="btn btn-sm btn-danger" onclick="rejectTrade('${approval.id}')">
-                                        Reject
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    pendingList.appendChild(approvalCard);
-                });
-            }
-        }
-
-        // Function to approve a trade
-        async function approveTrade(tradeId) {
+            
             try {
-                const response = await fetch('/api/approve-trade', {
+                const response = await fetch('/api/add-funds', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ trade_id: tradeId })
+                    body: JSON.stringify({ amount: parseFloat(amount) })
                 });
-
+                
                 const data = await response.json();
+                
                 if (data.success) {
-                    console.log('Trade approved:', tradeId);
-                    // Refresh the pending approvals list after approval
-                    await checkPendingApprovals();
+                    alert('Funds added successfully!');
+                    refreshWalletData();
                 } else {
-                    console.error('Error approving trade:', data.message);
+                    alert('Error adding funds: ' + data.message);
                 }
             } catch (error) {
-                console.error('Error approving trade:', error);
+                console.error('Error adding funds:', error);
+                alert('Error adding funds');
             }
         }
 
-        // Function to reject a trade
-        async function rejectTrade(tradeId) {
+        // Function to withdraw funds from wallet
+        async function withdrawFunds() {
+            const address = document.getElementById('withdrawAddress').value;
+            const amount = document.getElementById('withdrawAmount').value;
+            
+            if (!address) {
+                alert('Please enter a destination address');
+                return;
+            }
+            
+            if (!amount || parseFloat(amount) <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+            
             try {
-                const response = await fetch('/api/reject-trade', {
+                const response = await fetch('/api/withdraw-funds', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ trade_id: tradeId })
+                    body: JSON.stringify({ 
+                        destination_address: address,
+                        amount: parseFloat(amount) 
+                    })
                 });
-
+                
                 const data = await response.json();
+                
                 if (data.success) {
-                    console.log('Trade rejected:', tradeId);
-                    // Refresh the pending approvals list after rejection
-                    await checkPendingApprovals();
+                    alert('Funds withdrawn successfully!');
+                    refreshWalletData();
                 } else {
-                    console.error('Error rejecting trade:', data.message);
+                    alert('Error withdrawing funds: ' + data.message);
                 }
             } catch (error) {
-                console.error('Error rejecting trade:', error);
+                console.error('Error withdrawing funds:', error);
+                alert('Error withdrawing funds');
             }
+        }
+
+        // Function to update transaction history table
+        function updateTransactionHistory(transactions) {
+            if (transactions.length === 0) {
+                transactionHistory.innerHTML = '<tr><td colspan="8" class="text-center">No transactions yet</td></tr>';
+                return;
+            }
+
+            let html = '';
+            transactions.slice().reverse().forEach(tx => {
+                // Use token symbol if available, otherwise use first 6 chars of token mint
+                const displayToken = tx.token_symbol || tx.token.substring(0, 6) + '...';
+                // Display price with full precision
+                const displayPrice = parseFloat(tx.price.toFixed(8)).toString();
+                const displayBasePrice = tx.base_price_at_execution ? parseFloat(tx.base_price_at_execution.toFixed(8)).toString() : 'N/A';
+                // Calculate P&L if base price is available
+                let displayPL = 'N/A';
+                let plClass = '';
+                if (tx.base_price_at_execution && tx.action === 'sell') {
+                    const profitLoss = tx.price - tx.base_price_at_execution;
+                    const formattedPL = parseFloat(profitLoss.toFixed(8)).toString();
+                    if (profitLoss >= 0) {
+                        displayPL = '+' + formattedPL;
+                        plClass = 'text-success';  // Positive P&L in green
+                    } else {
+                        displayPL = formattedPL;
+                        plClass = 'text-danger';  // Negative P&L in red
+                    }
+                } else if (tx.action === 'buy') {
+                    displayPL = 'N/A';  // No P&L for buy transactions
+                }
+
+                // Part information - only show for sell operations
+                let displayPart = tx.action === 'buy' ? '-' : 'N/A';
+                if (tx.part_number !== undefined && tx.part_number !== null) {
+                    if (tx.total_parts && tx.total_parts > 1) {
+                        displayPart = `${tx.part_number}/${tx.total_parts}`;
+                    } else {
+                        displayPart = tx.part_number;  // Just show the part number if total is not informative
+                    }
+                } else if (tx.action === 'buy') {
+                    displayPart = '-';  // Show dash for buy operations since they don't consume parts
+                }
+
+                // Transaction status badge
+                const statusBadge = tx.status === 'completed' ? 'success' : 'danger';
+                const statusText = tx.status === 'completed' ? 'Completed' : 'Failed';
+
+                html += `<tr>
+                    <td>${tx.timestamp}</td>
+                    <td><span class="badge bg-${tx.action === 'buy' ? 'success' : 'danger'}">${tx.action}</span></td>
+                    <td>${displayPart}</td>  <!-- Part number -->
+                    <td>${displayToken}</td>
+                    <td>$${displayPrice}</td>  <!-- Current price at execution -->
+                    <td>$${displayBasePrice}</td>  <!-- Base price at execution -->
+                    <td class="${plClass}">$${displayPL}</td>  <!-- Profit/Loss -->
+                    <td>${tx.amount}</td>
+                    <td><span class="badge bg-${statusBadge}">${statusText}</span></td>
+                </tr>`;
+            });
+
+            transactionHistory.innerHTML = html;
         }
 
         // Initialize the page
@@ -846,9 +741,6 @@
 
             // Refresh balances every 30 seconds
             setInterval(fetchTokenBalances, 30000);
-
-            // Check for pending trade approvals every 2 seconds
-            setInterval(checkPendingApprovals, 2000);
         }
 
         // Call init when page loads

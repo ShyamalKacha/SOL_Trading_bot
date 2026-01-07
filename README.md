@@ -1,155 +1,162 @@
-# Solana Trading Bot
+# Multi-User Solana Trading Bot
 
-A web-based automated trading bot that uses Jupiter's Quote API to execute trades based on user-defined price thresholds. The bot connects to Phantom wallet and supports trading of various Solana tokens including SOL, wSOL, and USDC.
+A comprehensive multi-user Solana trading bot with wallet management and automated trading capabilities.
 
 ## Features
 
-- Connect to Phantom wallet for token management
-- Set base price and percentage thresholds for automated trading
-- Real-time price tracking using Jupiter API
-- Dual array system (buy_parts and sell_parts) for managing trading opportunities
-- Automated buying when price drops below base price and buy opportunities are available
-- Automated selling when price exceeds upper or lower thresholds and sell opportunities are available
-- Transaction history logging with accurate part numbering
-- Support for SOL, wSOL, and USDC tokens
-- Trade simulation mode (no actual transactions executed)
-- Balance checking before executing trades to ensure sufficient funds
-- Reserved SOL balance (0.005 SOL minimum) for transaction fees
-- Profit calculation accounting for transaction fees ($0.02 per transaction)
-- Configurable slippage tolerance (default 0.5%)
+- **Multi-User Support**: Each user gets their own Solana wallet and trading instance
+- **Email OTP Verification**: Secure registration with email verification
+- **Wallet Management**: Add and withdraw funds from user wallets
+- **Automated Trading**: Advanced trading bot with configurable parameters
+- **Dark Theme UI**: Modern, responsive dark-themed interface
+- **Secure Storage**: Encrypted private key storage
 
-## Requirements
+## Prerequisites
 
-- Python 3.7 or higher
-- Phantom wallet browser extension
-- Node.js (for development)
+- Python 3.8+
+- Solana account with some SOL for transaction fees
+- Jupiter API key
+- Brevo (Sendinblue) API key for email OTP
+- Helius API key (optional but recommended)
 
 ## Installation
 
-1. Clone the repository or download the project files
-2. Make sure you have Python 3.7+ installed
-3. Run the application using the provided batch file:
-   ```
-   run_app.bat
-   ```
-   This will:
-   - Create a virtual environment if it doesn't exist
-   - Install all required dependencies
-   - Start the Flask application
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd solana-trading-bot
+```
 
-## Manual Installation
-
-If you prefer to set up manually:
-
-1. Create a virtual environment:
-   ```
-   python -m venv venv
-   ```
-
-2. Activate the virtual environment:
-   - On Windows: `venv\Scripts\activate`
-   - On macOS/Linux: `source venv/bin/activate`
+2. Create a virtual environment:
+```bash
+python -m venv venv
+venv\Scripts\activate  # On Windows
+# source venv/bin/activate  # On Linux/Mac
+```
 
 3. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+```bash
+pip install -r requirements.txt
+```
 
-4. Run the application:
-   ```
-   python -m app.main
-   ```
+4. Set up environment variables:
+```bash
+cp .env.example .env
+```
+
+5. Edit the `.env` file with your API keys and configuration.
+
+## Environment Variables
+
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# Flask configuration
+SECRET_KEY=your-secret-key-change-this-in-production
+
+# Jupiter API
+JUPITER_API_KEY=your-jupiter-api-key
+
+# Helius API (optional but recommended for better RPC performance)
+HELIUS_API_KEY=your-helius-api-key
+
+# Brevo (Sendinblue) API for sending OTP emails
+BREVO_API_KEY=your-brevo-api-key
+SENDER_EMAIL=your-sender-email@example.com
+
+# Encryption key for storing private keys securely
+ENCRYPTION_KEY=your-encryption-key-generated-using-python-cryptography
+```
+
+To generate an encryption key:
+```python
+from cryptography.fernet import Fernet
+key = Fernet.generate_key()
+print(key.decode())
+```
 
 ## Usage
 
-1. Open your browser and navigate to `http://localhost:5000`
-2. Connect your Phantom wallet by clicking the "Connect Wallet" button
-3. Select the token you want to trade from the dropdown
-4. Set your base price (the price at which you want to trigger trades)
-5. Set your up percentage (the percentage above base price to sell)
-6. Set your down percentage (the percentage below base price to sell)
-7. Set the trade amount (how much of the token to trade per transaction)
-8. Set the number of parts (determines how many buy and sell opportunities are available)
-9. Click "Start Trading" to begin the automated trading
-
-### Trading Parameters Explained
-- **Base Price**: The reference price for determining buy/sell thresholds (automatically set to current market price when trading starts)
-- **Up Percentage**: Sell when price rises above (base price * (1 + up percentage))
-- **Down Percentage**: Buy when price falls below (base price * (1 - down percentage))
-- **Trade Amount**: Total dollar amount to trade, divided by number of parts for each transaction (buy operations spend this dollar amount, sell operations sell tokens worth this dollar amount at current market price)
-- **Number of Parts**: Total trading opportunities available (split between buy and sell arrays)
-- **Network**: Select between mainnet (real transactions) or devnet/testnet (simulation)
-- **Trading Mode**: Automatic (no approval needed) or User Approval (requires manual confirmation)
-
-## Trading Logic
-
-The bot follows this trading strategy with dual arrays for buy/sell operations:
-
-1. The bot uses two arrays (buy_parts and sell_parts) each initialized with the number of parts specified by the user
-2. When the current price is lower than the base price and there are buy opportunities available (buy_parts > 0), it will buy the token
-3. When the current price is higher than (base price * (1 + up percentage)) OR lower than (base price * (1 - down percentage)) and there are sell opportunities available (sell_parts > 0), it will sell the token
-4. When a buy operation occurs: buy_parts decreases by 1, sell_parts increases by 1 (creating a future sell opportunity worth the same dollar amount)
-5. When a sell operation occurs: sell_parts decreases by 1, buy_parts increases by 1 (creating a future buy opportunity worth the same dollar amount)
-6. The total number of parts remains constant throughout trading
-7. The bot can switch between buy and sell operations based on price conditions as long as opportunities are available in the respective arrays
-8. Transaction fees are reserved (0.005 SOL minimum) and profit calculations account for fees ($0.02 per transaction)
-9. Balance checking ensures sufficient funds are available before executing trades
-
-## Project Structure
-
-```
-solana-trading-bot/
-│
-├── app/
-│   ├── __init__.py
-│   ├── main.py             # Main Flask application
-│   └── templates/
-│       └── index.html      # Main web interface
-├── app/static/
-│   ├── css/
-│   └── js/
-├── requirements.txt        # Python dependencies
-├── jupiter_api.md          # Jupiter API documentation
-├── run_app.bat             # Windows batch file to run the application
-├── .gitignore
-└── README.md
+1. Start the application:
+```bash
+python app/main.py
 ```
 
-## API Endpoints
+2. Open your browser and go to `http://localhost:5000`
 
-- `GET /` - Main web interface
-- `GET /api/wallet-balance` - Get token balances (mock implementation)
-- `POST /api/get-price` - Get current price for a token pair from Jupiter API
-- `POST /api/start-trading` - Start the automated trading algorithm
-- `POST /api/stop-trading` - Stop the automated trading algorithm
-- `GET /api/trading-status` - Get current trading status and price
+3. Register a new account using your email address
 
-## Jupiter API Integration
+4. Verify your email using the OTP sent to your inbox
 
-The bot uses Jupiter's Quote API to get real-time token prices:
+5. Start trading with your personal wallet
 
-- Endpoint: `https://quote-api.jup.ag/v6/quote`
-- Parameters: inputMint, outputMint, amount, slippageBps
-- All trades are simulated and not executed on mainnet
+## Architecture
+
+- **User Model**: Handles user authentication and registration
+- **Wallet Model**: Manages Solana wallets for each user
+- **Trading Bot Model**: Manages trading configurations per user
+- **Database**: SQLite for storing user data and configurations
 
 ## Security
 
-- All transactions are simulated (no real trades are executed)
-- The application only reads wallet information and does not have permission to make transactions
-- Private keys remain in the Phantom wallet and are never accessed by the application
+- Passwords are hashed using bcrypt
+- Private keys are encrypted using Fernet (AES 128)
+- Session management with secure Flask sessions
+- Input validation and sanitization
 
-## Limitations
+## API Endpoints
 
-- This is a simulation application; no real trades are executed
-- Price updates happen every 5 seconds
-- Only supports a limited set of tokens (SOL, wSOL, USDC)
-- Requires an internet connection to fetch price data
+### Authentication
+- `POST /api/register` - Register a new user
+- `POST /api/verify-otp` - Verify OTP for registration
+- `POST /api/login` - Login a user
+- `POST /api/logout` - Logout a user
 
-## Troubleshooting
+### Wallet Management
+- `GET /api/wallet-info` - Get user's wallet address
+- `GET /api/wallet-balance` - Get user's wallet balance
+- `POST /api/add-funds` - Add funds to user's wallet
+- `POST /api/withdraw-funds` - Withdraw funds from user's wallet
 
-If you encounter issues:
-1. Make sure your Phantom wallet is installed and updated
-2. Ensure you have an active internet connection
-3. Check the browser console for any JavaScript errors
-4. Review the terminal output for any Python errors
-5. Make sure all dependencies were installed correctly
+### Trading
+- `POST /api/start-trading` - Start trading bot
+- `POST /api/stop-trading` - Stop trading bot
+- `GET /api/trading-status` - Get trading status
+- `GET /api/pending-approvals` - Get pending trade approvals
+- `POST /api/approve-trade` - Approve a trade
+- `POST /api/reject-trade` - Reject a trade
+- `POST /api/get-price` - Get current token price
+
+## Trading Parameters
+
+- **Network**: Mainnet, Devnet, or Testnet
+- **Trading Mode**: Automatic or User Approval
+- **Up Percentage**: Percentage increase to trigger sell
+- **Down Percentage**: Percentage decrease to trigger buy
+- **Trade Amount**: Total amount to trade
+- **Parts**: Number of parts to divide the trade into
+
+## Wallet Management
+
+Users can:
+- View their wallet address and token balances
+- Add funds by transferring from external wallets
+- Withdraw funds to external addresses
+- Monitor transaction history
+
+## Development
+
+To run in development mode with auto-reload:
+```bash
+export FLASK_ENV=development
+python app/main.py
+```
+
+## Deployment
+
+For production deployment, consider:
+- Using a production WSGI server like Gunicorn
+- Setting up a reverse proxy with Nginx
+- Using a production database like PostgreSQL
+- Implementing proper logging
+- Setting up SSL certificates

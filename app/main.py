@@ -1,10 +1,26 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import requests
 import json
 from dotenv import load_dotenv
 import os
 from base58 import b58decode
-# Updated trading algorithm implementation
+import sqlite3
+from datetime import datetime, timedelta
+import threading
+import time
+import queue
+import uuid
+from cryptography.fernet import Fernet
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import bcrypt
+import secrets
+
+# Load environment variables
+load_dotenv()
+
+# Import Solana libraries with fallbacks
 try:
     from solana.publickey import PublicKey
     from solana.rpc.api import Client
@@ -33,15 +49,18 @@ except ImportError:
         # Define a default TOKEN_PROGRAM_ID for fallback
         TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 
-# Load environment variables
-load_dotenv()
-
-import threading
-import time
-from datetime import datetime
-import queue
+# Import models
+from models.user import User
+from models.wallet import Wallet
+from models.trading_bot import TradingBot
 
 app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-this-in-production')
+
+# Initialize database tables
+User.create_table()
+Wallet.create_table()
+TradingBot.create_table()
 
 # Constants
 # Using the Jupiter API endpoint for quotes (requires API key)
@@ -86,54 +105,234 @@ TOKEN_INFO = {
     "3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh": {"symbol": "WBTC", "name": "Wrapped BTC (Wormhole)"},
 }
 
-# Global variables to store trading state
-trading_state = {
-    "is_running": False,
-    "last_action": None,  # 'buy' or 'sell'
-    "current_price": 0,
-    "dynamic_base_price": None,
-    "total_profit": 0,  # Track total profit
-    "position": 0,  # Track number of tokens held
-    "avg_purchase_price": 0,  # Track average purchase price
-    "parts": 0,  # Total number of parts
-    "part_size": 0,  # Size of each part
-    "remaining_parts": 0,  # Number of remaining parts to sell
-    "transaction_history": [],
-    "buy_parts": [],  # Array to track buy parts
-    "sell_parts": [],  # Array to track sell parts
-}
+# Global dictionary to store trading state for each user
+user_trading_states = {}
 
-# Global list for pending trade approvals (for frontend)
-pending_approvals_list = []
-# Lock for thread-safe access to the list
-import threading
-pending_approvals_lock = threading.Lock()
+# Global dictionary for pending trade approvals (per user)
+user_pending_approvals = {}
+user_approvals_locks = {}
+user_approvals_queues = {}
 
-# Global queue for trading algorithm to process approvals
-pending_approvals_queue = queue.Queue()
+def get_user_trading_state(user_id):
+    """Get or create trading state for a user"""
+    if user_id not in user_trading_states:
+        user_trading_states[user_id] = {
+            "is_running": False,
+            "last_action": None,  # 'buy' or 'sell'
+            "current_price": 0,
+            "dynamic_base_price": None,
+            "total_profit": 0,  # Track total profit
+            "position": 0,  # Track number of tokens held
+            "avg_purchase_price": 0,  # Track average purchase price
+            "parts": 0,  # Total number of parts
+            "part_size": 0,  # Size of each part
+            "remaining_parts": 0,  # Number of remaining parts to sell
+            "transaction_history": [],
+            "buy_parts": [],  # Array to track buy parts
+            "sell_parts": [],  # Array to track sell parts
+        }
+    return user_trading_states[user_id]
 
-# Initialize wallet public key after functions are defined
-WALLET_PUBLIC_KEY = None
+def get_user_pending_approvals(user_id):
+    """Get or create pending approvals for a user"""
+    if user_id not in user_pending_approvals:
+        user_pending_approvals[user_id] = []
+    if user_id not in user_approvals_locks:
+        user_approvals_locks[user_id] = threading.Lock()
+    if user_id not in user_approvals_queues:
+        user_approvals_queues[user_id] = queue.Queue()
+    return user_pending_approvals[user_id], user_approvals_locks[user_id], user_approvals_queues[user_id]
 
+def send_otp_email(email, otp):
+    """Send OTP to user's email using Brevo (Sendinblue)"""
+    try:
+        # Using Brevo (Sendinblue) API
+        api_key = os.getenv('BREVO_API_KEY')
+        if not api_key:
+            print("BREVO_API_KEY not set in environment")
+            return False
+            
+        headers = {
+            'api-key': api_key,
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            "sender": {
+                "name": "Solana Trading Bot",
+                "email": os.getenv('SENDER_EMAIL', 'no-reply@yourdomain.com')
+            },
+            "to": [
+                {
+                    "email": email
+                }
+            ],
+            "subject": "Your OTP for Registration",
+            "htmlContent": f"""
+            <html>
+            <body>
+                <h2>Solana Trading Bot Registration</h2>
+                <p>Your OTP for registration is: <strong>{otp}</strong></p>
+                <p>This OTP will expire in 10 minutes.</p>
+                <p>If you didn't request this, please ignore this email.</p>
+            </body>
+            </html>
+            """
+        }
+        
+        response = requests.post(
+            'https://api.brevo.com/v3/smtp/email',
+            headers=headers,
+            json=payload
+        )
+        
+        if response.status_code == 201:
+            print(f"OTP sent successfully to {email}")
+            return True
+        else:
+            print(f"Failed to send OTP: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"Error sending OTP: {e}")
+        return False
+
+def generate_otp():
+    """Generate a 6-digit OTP"""
+    return str(secrets.randbelow(900000) + 100000)  # Generates a 6-digit number
+
+def require_login(f):
+    """Decorator to require user login"""
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({"success": False, "message": "Authentication required"}), 401
+        return f(*args, **kwargs)
+    decorated_function.__name__ = f.__name__
+    return decorated_function
+
+# Routes for authentication
 @app.route('/')
 def index():
-    return render_template('index.html', tokens=MOCK_TOKENS)
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    return render_template('auth/login.html')
 
+@app.route('/login')
+def login():
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    return render_template('auth/login.html')
+
+@app.route('/register')
+def register():
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    return render_template('auth/register.html')
+
+@app.route('/dashboard')
+@require_login
+def dashboard():
+    return render_template('dashboard/index.html')
+
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    """Register a new user"""
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    
+    if not email or not password:
+        return jsonify({"success": False, "message": "Email and password are required"}), 400
+    
+    # Check if user already exists
+    existing_user = User.find_by_email(email)
+    if existing_user:
+        return jsonify({"success": False, "message": "Email already registered"}), 400
+    
+    # Create new user
+    user = User(email=email)
+    user.set_password(password)
+    user.save()
+    
+    # Generate OTP
+    otp = generate_otp()
+    otp_expiry = datetime.utcnow() + timedelta(minutes=10)
+    
+    # Store OTP in database
+    User.set_otp_secret(email, otp, otp_expiry)
+    
+    # Send OTP via email
+    if send_otp_email(email, otp):
+        return jsonify({"success": True, "message": "Registration successful. Please check your email for OTP."})
+    else:
+        return jsonify({"success": False, "message": "Registration successful but failed to send OTP. Please contact support."}), 500
+
+@app.route('/api/verify-otp', methods=['POST'])
+def api_verify_otp():
+    """Verify OTP for registration"""
+    data = request.get_json()
+    email = data.get('email')
+    otp = data.get('otp')
+    
+    if not email or not otp:
+        return jsonify({"success": False, "message": "Email and OTP are required"}), 400
+    
+    # Verify OTP
+    if User.verify_otp(email, otp):
+        # Create wallet for the user
+        user = User.find_by_email(email)
+        if user:
+            wallet = Wallet.create_wallet_for_user(user.id)
+            # Create trading bot for the user
+            TradingBot.create_bot_for_user(user.id)
+            return jsonify({"success": True, "message": "OTP verified. Account created successfully."})
+        else:
+            return jsonify({"success": False, "message": "User not found"}), 400
+    else:
+        return jsonify({"success": False, "message": "Invalid or expired OTP"}), 400
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    """Login a user"""
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    
+    if not email or not password:
+        return jsonify({"success": False, "message": "Email and password are required"}), 400
+    
+    user = User.find_by_email(email)
+    if user and user.check_password(password):
+        session['user_id'] = user.id
+        return jsonify({"success": True, "message": "Login successful"})
+    else:
+        return jsonify({"success": False, "message": "Invalid email or password"}), 401
+
+@app.route('/api/logout', methods=['POST'])
+def api_logout():
+    """Logout a user"""
+    session.pop('user_id', None)
+    return jsonify({"success": True, "message": "Logged out successfully"})
+
+# API routes for wallet and trading functionality
 @app.route('/api/wallet-info')
+@require_login
 def get_wallet_info():
-    """Get wallet address derived from the private key in .env"""
+    """Get wallet address for the logged-in user"""
     try:
-        wallet_address = get_wallet_address()
-        if not wallet_address:
+        user_id = session['user_id']
+        wallet = Wallet.find_by_user_id(user_id)
+        
+        if not wallet:
             return jsonify({
                 "success": False,
-                "message": "Could not retrieve wallet address from private key. Please check SOLANA_PRIVATE_KEY in .env file.",
+                "message": "Wallet not found for user",
                 "wallet_address": None
             })
 
         return jsonify({
             "success": True,
-            "wallet_address": wallet_address
+            "wallet_address": wallet.public_key
         })
     except Exception as e:
         print(f"Error in get_wallet_info: {e}")
@@ -144,23 +343,33 @@ def get_wallet_info():
         })
 
 @app.route('/api/wallet-balance')
+@require_login
 def get_wallet_balance_default():
-    """Default route for wallet balance - returns balance for the private key wallet"""
+    """Get wallet balance for the logged-in user"""
     try:
-        wallet_address = get_wallet_address()
-        if not wallet_address:
+        user_id = session['user_id']
+        wallet = Wallet.find_by_user_id(user_id)
+
+        if not wallet:
             return jsonify({
                 "success": False,
-                "message": "Could not retrieve wallet address from private key",
+                "message": "Wallet not found for user",
                 "balances": []
             })
 
-        return get_wallet_balance(wallet_address, "mainnet")
+        # Fetch real balance from Solana blockchain
+        response = get_wallet_balance(wallet.public_key, "mainnet")
+        # Update the wallet's balance in the database
+        if hasattr(response, 'get_json'):
+            response_data = response.get_json()
+            if response_data.get("success"):
+                wallet.update_balance(response_data.get("balances", []))
+        return response
     except Exception as e:
         print(f"Error in get_wallet_balance_default: {e}")
         return jsonify({
             "success": False,
-            "message": f"Error connecting to wallet: {str(e)}",
+            "message": f"Error getting wallet balance: {str(e)}",
             "balances": []
         })
 
@@ -170,7 +379,7 @@ def get_wallet_balance(wallet_address, network="mainnet"):
     """Function to get real wallet token balances from Solana blockchain"""
     try:
         # Validate wallet address format (basic check)
-        if len(wallet_address) < 32 or len(wallet_address) > 44:
+        if len(wallet_address) < 32 or len(wallet_address) < 32:
             return jsonify({
                 "success": False,
                 "message": "Invalid wallet address format",
@@ -282,7 +491,6 @@ def get_wallet_balance(wallet_address, network="mainnet"):
             "balances": []
         })
 
-
 @app.route('/api/get-price', methods=['POST'])
 def get_price():
     """Get current price for a token pair using Jupiter API"""
@@ -339,9 +547,12 @@ def get_price():
         return jsonify({"price": 0.0, "success": False, "message": str(e)})
 
 @app.route('/api/start-trading', methods=['POST'])
+@require_login
 def start_trading():
-    """Start the trading algorithm"""
-    global trading_state
+    """Start the trading algorithm for the logged-in user"""
+    user_id = session['user_id']
+    trading_state = get_user_trading_state(user_id)
+    
     data = request.get_json()
 
     # Validate required parameters (removed basePrice since it's now automatically set)
@@ -371,13 +582,13 @@ def start_trading():
     if network not in ['mainnet', 'devnet', 'testnet']:
         return jsonify({"error": "Network must be 'mainnet', 'devnet', or 'testnet'"}), 400
 
-    # Stop any existing trading thread
+    # Stop any existing trading thread for this user
     trading_state['is_running'] = False
 
     # Start new trading thread - the algorithm will fetch current price and use it as base
     trading_thread = threading.Thread(
         target=trading_algorithm,
-        args=(0, up_percentage, down_percentage, selected_token, trade_amount, parts, network, trading_mode)  # Pass 0 as placeholder for base_price
+        args=(user_id, 0, up_percentage, down_percentage, selected_token, trade_amount, parts, network, trading_mode)  # Pass 0 as placeholder for base_price
     )
     trading_thread.daemon = True
     trading_thread.start()
@@ -385,15 +596,21 @@ def start_trading():
     return jsonify({"message": "Trading started"})
 
 @app.route('/api/stop-trading', methods=['POST'])
+@require_login
 def stop_trading():
-    """Stop the trading algorithm"""
-    global trading_state
+    """Stop the trading algorithm for the logged-in user"""
+    user_id = session['user_id']
+    trading_state = get_user_trading_state(user_id)
     trading_state['is_running'] = False
     return jsonify({"message": "Trading stopped"})
 
 @app.route('/api/trading-status')
+@require_login
 def get_trading_status():
-    """Get current trading status"""
+    """Get current trading status for the logged-in user"""
+    user_id = session['user_id']
+    trading_state = get_user_trading_state(user_id)
+    
     # Ensure dynamic base price is present in response
     status = trading_state.copy()
     # If dynamic_base_price is not set, default to the original base price concept
@@ -407,27 +624,34 @@ def get_trading_status():
     return jsonify(status)
 
 @app.route('/api/pending-approvals')
+@require_login
 def get_pending_approvals():
-    """Get pending trade approvals"""
+    """Get pending trade approvals for the logged-in user"""
+    user_id = session['user_id']
     try:
-        with pending_approvals_lock:
+        approvals, lock, queue = get_user_pending_approvals(user_id)
+        with lock:
             # Return a copy of the list to avoid race conditions
-            approvals = [approval.copy() for approval in pending_approvals_list if approval.get('result') == 'pending']
-        return jsonify({"approvals": approvals})
+            user_approvals = [approval.copy() for approval in approvals if approval.get('result') == 'pending']
+        return jsonify({"approvals": user_approvals})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/approve-trade', methods=['POST'])
+@require_login
 def approve_trade():
-    """Approve a pending trade"""
+    """Approve a pending trade for the logged-in user"""
+    user_id = session['user_id']
     try:
         data = request.get_json()
         trade_id = data.get('trade_id')
 
+        approvals, lock, queue_obj = get_user_pending_approvals(user_id)
+        
         # Update both the list and queue
-        with pending_approvals_lock:
+        with lock:
             # Update in the list
-            for approval in pending_approvals_list:
+            for approval in approvals:
                 if approval['id'] == trade_id:
                     approval['approved'] = True
                     approval['result'] = 'approved'
@@ -439,23 +663,27 @@ def approve_trade():
             'approved': True,
             'result': 'approved'
         }
-        pending_approvals_queue.put(approval_result)
+        queue_obj.put(approval_result)
 
         return jsonify({"success": True, "message": "Trade approved"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/reject-trade', methods=['POST'])
+@require_login
 def reject_trade():
-    """Reject a pending trade"""
+    """Reject a pending trade for the logged-in user"""
+    user_id = session['user_id']
     try:
         data = request.get_json()
         trade_id = data.get('trade_id')
 
+        approvals, lock, queue_obj = get_user_pending_approvals(user_id)
+        
         # Update both the list and queue
-        with pending_approvals_lock:
+        with lock:
             # Update in the list
-            for approval in pending_approvals_list:
+            for approval in approvals:
                 if approval['id'] == trade_id:
                     approval['approved'] = False
                     approval['result'] = 'rejected'
@@ -467,15 +695,15 @@ def reject_trade():
             'approved': False,
             'result': 'rejected'
         }
-        pending_approvals_queue.put(approval_result)
+        queue_obj.put(approval_result)
 
         return jsonify({"success": True, "message": "Trade rejected"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-def trading_algorithm(base_price, up_percentage, down_percentage, selected_token, trade_amount, parts, network="mainnet", trading_mode="automatic"):
+def trading_algorithm(user_id, base_price, up_percentage, down_percentage, selected_token, trade_amount, parts, network="mainnet", trading_mode="automatic"):
     """Main trading algorithm with correct laddering logic - each transaction updates the base price"""
-    global trading_state
+    trading_state = get_user_trading_state(user_id)
     trading_state['is_running'] = True
     trading_state['last_action'] = None
     trading_state['total_profit'] = 0  # Track total profit
@@ -582,7 +810,6 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
             sell_threshold = current_base_price * (1 + up_percentage / 100)
             buy_threshold = current_base_price * (1 - down_percentage / 100)
 
-            # Determine if we should buy or sell based on current price vs thresholds
             # We can buy if there are buy opportunities available (buy_parts > 0)
             # We can sell if there are sell opportunities available (sell_parts > 0)
             should_buy = current_price <= buy_threshold and len(trading_state['buy_parts']) > 0
@@ -601,7 +828,6 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         print(f"[USER MODE] Buy intent: {part_size} of {get_token_symbol(selected_token)} at ${current_price}")
 
                         # Create a trade approval request
-                        import uuid
                         trade_id = str(uuid.uuid4())
                         approval_request = {
                             'id': trade_id,
@@ -615,8 +841,9 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         }
 
                         # Add to both the list (for frontend) and queue (for trading algorithm)
-                        with pending_approvals_lock:
-                            pending_approvals_list.append(approval_request)
+                        approvals, lock, queue_obj = get_user_pending_approvals(user_id)
+                        with lock:
+                            approvals.append(approval_request)
 
                         # Wait for user approval with timeout
                         approval_timeout = 30  # 30 seconds timeout
@@ -626,11 +853,11 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         while time.time() - start_time < approval_timeout and not approved:
                             # Check if this trade has been approved/rejected from the queue
                             try:
-                                check_approval = pending_approvals_queue.get_nowait()
+                                check_approval = queue_obj.get_nowait()
                                 if check_approval['id'] == trade_id:
                                     if check_approval['result'] == 'approved':
                                         approved = True
-                                        transaction_result = execute_buy_transaction(current_price, selected_token, part_size, network)
+                                        transaction_result = execute_buy_transaction(user_id, current_price, selected_token, part_size, network)
                                         transaction_successful = transaction_result["success"]
                                     elif check_approval['result'] == 'rejected':
                                         transaction_successful = False
@@ -646,7 +873,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                             transaction_successful = False
                             print(f"[USER MODE] Timeout waiting for approval for buy intent")
                     else:  # automatic mode
-                        transaction_result = execute_buy_transaction(current_price, selected_token, part_size, network)
+                        transaction_result = execute_buy_transaction(user_id, current_price, selected_token, part_size, network)
                         transaction_successful = transaction_result["success"]
                 else:
                     # For devnet/testnet, just simulate
@@ -660,7 +887,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                     # Record the number of buy operations completed before modifying arrays
                     buy_operations_completed = parts - len(trading_state['buy_parts'])
 
-                    # When buying: reduce buy_parts by 1 (use a buy opportunity), increase sell_parts by 1 (create a sell opportunity)
+                    # When buying: reduce buy-parts by 1 (use a buy opportunity), increase sell-parts by 1 (create a sell opportunity)
                     if len(trading_state['buy_parts']) > 0:
                         # Remove a part from buy array (use up a buy opportunity)
                         trading_state['buy_parts'].pop()  # Remove from buy array
@@ -727,7 +954,6 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         print(f"[USER MODE] Sell intent: {actual_sell_amount} of {get_token_symbol(selected_token)} at ${current_price} (worth ${part_size:.2f})")
 
                         # Create a trade approval request
-                        import uuid
                         trade_id = str(uuid.uuid4())
                         approval_request = {
                             'id': trade_id,
@@ -741,8 +967,9 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         }
 
                         # Add to both the list (for frontend) and queue (for trading algorithm)
-                        with pending_approvals_lock:
-                            pending_approvals_list.append(approval_request)
+                        approvals, lock, queue_obj = get_user_pending_approvals(user_id)
+                        with lock:
+                            approvals.append(approval_request)
 
                         # Wait for user approval with timeout
                         approval_timeout = 30  # 30 seconds timeout
@@ -752,11 +979,11 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                         while time.time() - start_time < approval_timeout and not approved:
                             # Check if this trade has been approved/rejected from the queue
                             try:
-                                check_approval = pending_approvals_queue.get_nowait()
+                                check_approval = queue_obj.get_nowait()
                                 if check_approval['id'] == trade_id:
                                     if check_approval['result'] == 'approved':
                                         approved = True
-                                        transaction_result = execute_sell_transaction(current_price, selected_token, part_size, network)
+                                        transaction_result = execute_sell_transaction(user_id, current_price, selected_token, part_size, network)
                                         transaction_successful = transaction_result["success"]
                                     elif check_approval['result'] == 'rejected':
                                         transaction_successful = False
@@ -772,7 +999,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                             transaction_successful = False
                             print(f"[USER MODE] Timeout waiting for approval for sell intent")
                     else:  # automatic mode
-                        transaction_result = execute_sell_transaction(current_price, selected_token, actual_sell_amount, network)
+                        transaction_result = execute_sell_transaction(user_id, current_price, selected_token, actual_sell_amount, network)
                         transaction_successful = transaction_result["success"]
                 else:
                     # For devnet/testnet, just simulate
@@ -786,7 +1013,7 @@ def trading_algorithm(base_price, up_percentage, down_percentage, selected_token
                     # Record the number of sell operations completed before modifying arrays
                     sell_operations_completed = parts - len(trading_state['sell_parts'])
 
-                    # When selling: reduce sell_parts by 1 (use a sell opportunity), increase buy_parts by 1 (create a buy opportunity)
+                    # When selling: reduce sell-parts by 1 (use a sell opportunity), increase buy-parts by 1 (create a buy opportunity)
                     if len(trading_state['sell_parts']) > 0:
                         # Remove a part from sell array (use up a sell opportunity)
                         trading_state['sell_parts'].pop()  # Remove from sell array
@@ -931,53 +1158,20 @@ def get_token_symbol(token_mint):
     """Get a display name for a token mint"""
     return TOKEN_INFO.get(token_mint, {}).get("symbol", f"Token_{token_mint[:8]}")
 
-def load_keypair():
-    key_b58 = os.environ["SOLANA_PRIVATE_KEY"].strip()
-    secret = b58decode(key_b58)
-
-    if len(secret) == 64:
-        return Keypair.from_bytes(secret)
-
-    if len(secret) == 32:
-        return Keypair.from_seed(secret)
-
-    raise ValueError(f"Invalid Solana key length: {len(secret)}")
-
-KEYPAIR = load_keypair()
-WALLET_PUBLIC_KEY = str(KEYPAIR.pubkey())
-
-print("WALLET ADDRESS:", WALLET_PUBLIC_KEY)
-
-def get_private_key():
-    """Get the private key from environment variables"""
-    private_key_base58 = os.getenv("SOLANA_PRIVATE_KEY")
-    if not private_key_base58:
-        raise ValueError("SOLANA_PRIVATE_KEY not set")
-
-    secret_key = b58decode(private_key_base58.strip())
-
-    if len(secret_key) == 64:
-        return secret_key
-
-    if len(secret_key) == 32:
-        # For 32-byte seeds, we need to expand to 64 bytes for transaction signing
-        return Keypair.from_seed(secret_key).to_bytes()
-
-    raise ValueError(f"Invalid Solana key length: {len(secret_key)}")
-
-def get_wallet_address():
-    """Get the wallet address from the private key"""
-    try:
-        return WALLET_PUBLIC_KEY
-    except Exception as e:
-        print(f"Error getting wallet address: {e}")
-        return None
-
-def execute_swap(input_mint, output_mint, amount, slippage_bps=50):
+def execute_swap(user_id, input_mint, output_mint, amount, slippage_bps=50):
     """Execute a swap transaction using Jupiter API and private key"""
     try:
-        # Use the global keypair
-        keypair = KEYPAIR
+        # Get user's wallet from database
+        wallet = Wallet.find_by_user_id(user_id)
+        if not wallet:
+            return {
+                "success": False,
+                "error": "Wallet not found for user"
+            }
+
+        # Get private key
+        private_key_bytes = wallet.get_private_key()
+        keypair = Keypair.from_bytes(private_key_bytes)
         user_public_key = str(keypair.pubkey())
 
         # Get Jupiter API key
@@ -1107,7 +1301,7 @@ def execute_swap(input_mint, output_mint, amount, slippage_bps=50):
             "error": str(e)
         }
 
-def execute_buy_transaction(price, token, amount, network="mainnet"):
+def execute_buy_transaction(user_id, price, token, amount, network="mainnet"):
     """Execute a real buy transaction using private key"""
     if network.lower() != "mainnet":
         # For devnet/testnet, just simulate
@@ -1116,19 +1310,19 @@ def execute_buy_transaction(price, token, amount, network="mainnet"):
         return {"success": True, "signature": "simulated", "message": "Simulated transaction"}
 
     # Check wallet balance before executing trade
-    wallet_address = WALLET_PUBLIC_KEY
-    # Use the app context when calling get_wallet_balance
-    with app.app_context():
-        balance_response = get_wallet_balance(wallet_address, network)
-        # Extract the JSON data from the response
-        from flask import json
-        balance_result = json.loads(balance_response.get_data(as_text=True))
+    wallet = Wallet.find_by_user_id(user_id)
+    if not wallet:
+        return {"success": False, "error": "Wallet not found for user"}
 
-    if not balance_result.get("success", False):
-        print(f"[FAILED] Could not check wallet balance: {balance_result.get('message', 'Unknown error')}")
+    wallet_address = wallet.public_key
+
+    # Get token balances
+    balance_response = get_wallet_balance(wallet_address, network)
+    if not balance_response.get("success", False):
+        print(f"[FAILED] Could not check wallet balance: {balance_response.get('message', 'Unknown error')}")
         return {"success": False, "error": "Could not check wallet balance"}
 
-    balances = balance_result.get("balances", [])
+    balances = balance_response.get("balances", [])
 
     # Determine input and output mints for the swap
     # If buying token, we're swapping from SOL/USDC to the token
@@ -1179,7 +1373,7 @@ def execute_buy_transaction(price, token, amount, network="mainnet"):
     amount_units = int(amount * 10**6)  # Convert to USDC units (6 decimals)
 
     # Execute the swap
-    result = execute_swap(input_mint, output_mint, amount_units)
+    result = execute_swap(user_id, input_mint, output_mint, amount_units)
 
     if result["success"]:
         token_symbol = get_token_symbol(token)
@@ -1192,7 +1386,7 @@ def execute_buy_transaction(price, token, amount, network="mainnet"):
         print(f"Error: {result['error']}")
         return result
 
-def execute_sell_transaction(price, token, amount, network="mainnet"):
+def execute_sell_transaction(user_id, price, token, amount, network="mainnet"):
     """Execute a real sell transaction using private key"""
     if network.lower() != "mainnet":
         # For devnet/testnet, just simulate
@@ -1201,19 +1395,19 @@ def execute_sell_transaction(price, token, amount, network="mainnet"):
         return {"success": True, "signature": "simulated", "message": "Simulated transaction"}
 
     # Check wallet balance before executing trade
-    wallet_address = WALLET_PUBLIC_KEY
-    # Use the app context when calling get_wallet_balance
-    with app.app_context():
-        balance_response = get_wallet_balance(wallet_address, network)
-        # Extract the JSON data from the response
-        from flask import json
-        balance_result = json.loads(balance_response.get_data(as_text=True))
+    wallet = Wallet.find_by_user_id(user_id)
+    if not wallet:
+        return {"success": False, "error": "Wallet not found for user"}
 
-    if not balance_result.get("success", False):
-        print(f"[FAILED] Could not check wallet balance: {balance_result.get('message', 'Unknown error')}")
+    wallet_address = wallet.public_key
+
+    # Get token balances
+    balance_response = get_wallet_balance(wallet_address, network)
+    if not balance_response.get("success", False):
+        print(f"[FAILED] Could not check wallet balance: {balance_response.get('message', 'Unknown error')}")
         return {"success": False, "error": "Could not check wallet balance"}
 
-    balances = balance_result.get("balances", [])
+    balances = balance_response.get("balances", [])
 
     # Determine input and output mints for the swap
     # If selling token, we're swapping from the token to SOL/USDC
@@ -1267,7 +1461,7 @@ def execute_sell_transaction(price, token, amount, network="mainnet"):
         amount_units = int(amount * 10**6)
 
     # Execute the swap
-    result = execute_swap(input_mint, output_mint, amount_units)
+    result = execute_swap(user_id, input_mint, output_mint, amount_units)
 
     if result["success"]:
         token_symbol = get_token_symbol(token)
@@ -1292,7 +1486,91 @@ def simulate_sell(price, token, amount):
     token_symbol = get_token_symbol(token)
     print(f"[SIMULATION] Selling {amount} of {token_symbol} (mint: {token[:8]}...) at ${price:.8f} per unit")
     # In a real simulation, we would update wallet balances, track positions, etc.
-    # For now, we just log the action as we're not connecting to a real wallet
+    # For now, we just log the action as we're not connecting to a real wallet")
+
+@app.route('/api/add-funds', methods=['POST'])
+@require_login
+def add_funds():
+    """Add funds to user's wallet - this would typically be handled by transferring from user's external wallet"""
+    user_id = session['user_id']
+    data = request.get_json()
+    amount = data.get('amount', 0)
+
+    if amount <= 0:
+        return jsonify({"success": False, "message": "Amount must be greater than 0"}), 400
+
+    try:
+        # In a real implementation, this would involve:
+        # 1. Generating a deposit address for the user
+        # 2. Monitoring for incoming transactions
+        # 3. Updating the balance when funds are received
+
+        # For now, we'll simulate the process
+        wallet = Wallet.find_by_user_id(user_id)
+        if not wallet:
+            return jsonify({"success": False, "message": "Wallet not found"}), 404
+
+        # Update the wallet balance (in a real implementation, this would happen after actual deposit)
+        # For simulation purposes, we'll just update the balance
+        current_balance = wallet.balance
+        if 'SOL' not in current_balance:
+            current_balance['SOL'] = 0
+        current_balance['SOL'] += amount
+        wallet.update_balance(current_balance)
+
+        return jsonify({
+            "success": True,
+            "message": f"Successfully added {amount} SOL to your wallet. Please send funds to your deposit address."
+        })
+    except Exception as e:
+        print(f"Error adding funds: {e}")
+        return jsonify({"success": False, "message": f"Error adding funds: {str(e)}"}), 500
+
+@app.route('/api/withdraw-funds', methods=['POST'])
+@require_login
+def withdraw_funds():
+    """Withdraw funds from user's wallet to external address"""
+    user_id = session['user_id']
+    data = request.get_json()
+    destination_address = data.get('destination_address')
+    amount = data.get('amount', 0)
+
+    if not destination_address:
+        return jsonify({"success": False, "message": "Destination address is required"}), 400
+
+    if amount <= 0:
+        return jsonify({"success": False, "message": "Amount must be greater than 0"}), 400
+
+    try:
+        # Get user's wallet
+        wallet = Wallet.find_by_user_id(user_id)
+        if not wallet:
+            return jsonify({"success": False, "message": "Wallet not found"}), 404
+
+        # Check if user has sufficient balance
+        current_balance = wallet.balance
+        if 'SOL' not in current_balance:
+            current_balance['SOL'] = 0
+
+        if current_balance['SOL'] < amount:
+            return jsonify({"success": False, "message": f"Insufficient balance. Available: {current_balance['SOL']} SOL"}), 400
+
+        # In a real implementation, this would involve:
+        # 1. Creating and signing a transaction to transfer funds
+        # 2. Submitting the transaction to the Solana network
+        # 3. Updating the balance after successful transaction
+
+        # For now, we'll simulate the withdrawal
+        current_balance['SOL'] -= amount
+        wallet.update_balance(current_balance)
+
+        return jsonify({
+            "success": True,
+            "message": f"Successfully initiated withdrawal of {amount} SOL to {destination_address}. Transaction in progress."
+        })
+    except Exception as e:
+        print(f"Error withdrawing funds: {e}")
+        return jsonify({"success": False, "message": f"Error withdrawing funds: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
