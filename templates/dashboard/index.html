@@ -15,7 +15,7 @@
                 <a class="nav-link" href="/dashboard">Dashboard</a>
                 <a class="nav-link" href="/wallet">Wallet</a>
                 <a class="nav-link" href="/trading">Trading</a>
-                <a class="nav-link" href="/api/logout">Logout</a>
+                <a class="nav-link" href="#" onclick="logout()">Logout</a>
             </div>
         </div>
     </nav>
@@ -745,6 +745,33 @@
 
         // Call init when page loads
         document.addEventListener('DOMContentLoaded', init);
+
+        // Logout function
+        async function logout() {
+            try {
+                const response = await fetch('/api/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Redirect to login page
+                    window.location.href = '/login';
+                } else {
+                    console.error('Logout failed:', result.message);
+                    // Still redirect to login even if server-side logout failed
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('Error during logout:', error);
+                // Redirect to login even if there's an error
+                window.location.href = '/login';
+            }
+        }
     </script>
 </body>
 </html>
