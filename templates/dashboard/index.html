@@ -6,6 +6,8 @@
     <title>Dashboard - Solana Trading Bot</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <!-- Solana Web3 Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 </head>
 <body class="bg-dark text-light">
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -854,17 +856,44 @@
                     const transactionData = await transactionResponse.json();
 
                     if (transactionData.success) {
-                        // For now, we'll use the standard Phantom approach for transfers
-                        // In a real implementation, we'd construct the actual transaction
+                        // Create and send actual transaction
+                        try {
+                            // Create connection to Solana cluster
+                            const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'), 'confirmed');
 
-                        // Prompt user to send funds manually (this is the current limitation)
-                        // In a future enhancement, we could use Phantom's transaction signing
-                        const confirmSend = confirm(
-                            `Please send ${amount} SOL from your wallet (${userPublicKey}) to the deposit address: ${transactionData.transaction.destination}\n\nClick OK when you have initiated the transfer.`
-                        );
+                            // Get the latest blockhash
+                            const { blockhash } = await connection.getLatestBlockhash();
 
-                        if (confirmSend) {
-                            alert(`Transfer initiated! Please send ${amount} SOL from your Phantom wallet to:\n${transactionData.transaction.destination}\n\nThe balance will update automatically when the transaction is confirmed on the blockchain.`);
+                            // Create transaction
+                            const transaction = new solanaWeb3.Transaction({
+                                feePayer: userPublicKey,
+                                blockhash: blockhash,
+                            });
+
+                            // Add transfer instruction
+                            const transferInstruction = solanaWeb3.SystemProgram.transfer({
+                                fromPubkey: new solanaWeb3.PublicKey(userPublicKey),
+                                toPubkey: new solanaWeb3.PublicKey(transactionData.transaction.destination),
+                                lamports: parseFloat(amount) * solanaWeb3.LAMPORTS_PER_SOL, // Convert SOL to lamports
+                            });
+
+                            transaction.add(transferInstruction);
+
+                            // Send transaction to user's wallet for confirmation
+                            const signature = await window.solana.signAndSendTransaction(transaction);
+
+                            // Show success message
+                            alert(`Transaction sent successfully! Signature: ${signature.signature}`);
+
+                            // Refresh balances
+                            await fetchTokenBalances();
+                        } catch (transactionError) {
+                            console.error('Transaction error:', transactionError);
+                            if (transactionError.message.includes('User rejected')) {
+                                alert('Transaction was cancelled by the user.');
+                            } else {
+                                alert('Failed to send transaction: ' + transactionError.message);
+                            }
                         }
                     } else {
                         console.error('Error creating transaction:', transactionData.message);
