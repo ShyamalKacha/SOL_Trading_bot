@@ -144,23 +144,27 @@ def get_user_pending_approvals(user_id):
     return user_pending_approvals[user_id], user_approvals_locks[user_id], user_approvals_queues[user_id]
 
 def send_otp_email(email, otp):
-    """Send OTP to user's email using Gmail SMTP"""
+    """Send OTP to user's email using configurable SMTP"""
     try:
         import smtplib
         from email.mime.text import MIMEText
         from email.mime.multipart import MIMEMultipart
 
-        # Get Gmail credentials from environment
-        gmail_email = os.getenv('GMAIL_EMAIL')
-        gmail_app_password = os.getenv('GMAIL_APP_PASSWORD')
+        # Get SMTP configuration from environment
+        smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        smtp_username = os.getenv('SMTP_USERNAME') or os.getenv('GMAIL_EMAIL')  # Fallback to GMAIL_EMAIL
+        smtp_password = os.getenv('SMTP_PASSWORD') or os.getenv('GMAIL_APP_PASSWORD')  # Fallback to GMAIL_APP_PASSWORD
+        sender_email = os.getenv('SENDER_EMAIL') or os.getenv('GMAIL_EMAIL')  # Fallback to GMAIL_EMAIL
 
-        if not gmail_email or not gmail_app_password:
-            print("GMAIL_EMAIL or GMAIL_APP_PASSWORD not set in environment")
+        # Check if we have the required environment variables
+        if not smtp_username or not smtp_password or not sender_email:
+            print("SMTP configuration not complete in environment")
             return False
 
         # Create message
         msg = MIMEMultipart()
-        msg['From'] = gmail_email
+        msg['From'] = sender_email
         msg['To'] = email
         msg['Subject'] = "Your OTP for Registration"
 
@@ -178,14 +182,14 @@ def send_otp_email(email, otp):
 
         msg.attach(MIMEText(html_content, 'html'))
 
-        # Connect to Gmail SMTP server
-        server = smtplib.SMTP('smtp.gmail.com', 587)
+        # Connect to SMTP server
+        server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()  # Enable encryption
-        server.login(gmail_email, gmail_app_password)
+        server.login(smtp_username, smtp_password)
 
         # Send email
         text = msg.as_string()
-        server.sendmail(gmail_email, email, text)
+        server.sendmail(sender_email, email, text)
         server.quit()
 
         print(f"OTP sent successfully to {email}")
