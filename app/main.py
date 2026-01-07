@@ -234,7 +234,8 @@ def register():
 @app.route('/dashboard')
 @require_login
 def dashboard():
-    return render_template('dashboard/index.html')
+    helius_api_key = os.getenv('HELIUS_API_KEY', '')
+    return render_template('dashboard/index.html', helius_api_key=helius_api_key)
 
 @app.route('/api/register', methods=['POST'])
 def api_register():

@@ -858,8 +858,18 @@
                     if (transactionData.success) {
                         // Create and send actual transaction
                         try {
-                            // Create connection to Solana cluster
-                            const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'), 'confirmed');
+                            // Create connection to Solana cluster using Helius API if available
+                            const heliusApiKey = "{{ helius_api_key }}";
+                            let rpcUrl;
+
+                            if (heliusApiKey && heliusApiKey !== "") {
+                                rpcUrl = `https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`;
+                            } else {
+                                // Fallback to public endpoint
+                                rpcUrl = solanaWeb3.clusterApiUrl('mainnet-beta');
+                            }
+
+                            const connection = new solanaWeb3.Connection(rpcUrl, 'confirmed');
 
                             // Get the latest blockhash
                             const { blockhash } = await connection.getLatestBlockhash();
