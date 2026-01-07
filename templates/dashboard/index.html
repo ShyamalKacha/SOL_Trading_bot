@@ -840,18 +840,43 @@
                     const response = await window.solana.connect();
                     const userPublicKey = response.publicKey.toString();
 
-                    // Show confirmation to user
-                    const confirmTransfer = confirm(
-                        `Please send ${amount} SOL from your wallet (${userPublicKey}) to deposit address: ${depositAddress}\n\nClick OK when you have initiated the transfer.`
-                    );
+                    // Create deposit transaction on the backend
+                    const transactionResponse = await fetch('/api/create-deposit-transaction', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            amount: parseFloat(amount)
+                        })
+                    });
 
-                    if (confirmTransfer) {
-                        // Show instructions to user
-                        alert(`Transfer initiated! Please send ${amount} SOL from your Phantom wallet to:\n${depositAddress}\n\nThe balance will update automatically when the transaction is confirmed on the blockchain.`);
+                    const transactionData = await transactionResponse.json();
+
+                    if (transactionData.success) {
+                        // For now, we'll use the standard Phantom approach for transfers
+                        // In a real implementation, we'd construct the actual transaction
+
+                        // Prompt user to send funds manually (this is the current limitation)
+                        // In a future enhancement, we could use Phantom's transaction signing
+                        const confirmSend = confirm(
+                            `Please send ${amount} SOL from your wallet (${userPublicKey}) to the deposit address: ${transactionData.transaction.destination}\n\nClick OK when you have initiated the transfer.`
+                        );
+
+                        if (confirmSend) {
+                            alert(`Transfer initiated! Please send ${amount} SOL from your Phantom wallet to:\n${transactionData.transaction.destination}\n\nThe balance will update automatically when the transaction is confirmed on the blockchain.`);
+                        }
+                    } else {
+                        console.error('Error creating transaction:', transactionData.message);
+                        alert('Error creating deposit transaction: ' + transactionData.message);
                     }
                 } catch (error) {
-                    console.error('Phantom wallet connection error:', error);
-                    alert('Failed to connect to Phantom wallet. Please make sure Phantom is installed and unlocked.');
+                    console.error('Phantom wallet error:', error);
+                    if (error.message.includes('User rejected')) {
+                        alert('Transaction was cancelled by the user.');
+                    } else {
+                        alert('Failed to process transaction. Please try again.\nError: ' + error.message);
+                    }
                 }
             } else {
                 // Fallback: show deposit address and instructions

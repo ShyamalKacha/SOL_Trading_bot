@@ -1533,6 +1533,64 @@ def get_deposit_address():
         print(f"Error getting deposit address: {e}")
         return jsonify({"success": False, "message": f"Error getting deposit address: {str(e)}"}), 500
 
+@app.route('/api/create-deposit-transaction', methods=['POST'])
+@require_login
+def create_deposit_transaction():
+    """Create a deposit transaction for the user to sign"""
+    try:
+        user_id = session['user_id']
+        data = request.get_json()
+        amount = float(data.get('amount', 0))
+
+        if amount <= 0:
+            return jsonify({"success": False, "message": "Amount must be greater than 0"}), 400
+
+        # Get user's wallet (where funds will be deposited to)
+        user_wallet = Wallet.find_by_user_id(user_id)
+        if not user_wallet:
+            return jsonify({"success": False, "message": "User wallet not found"}), 404
+
+        # In a real implementation, we would create a transaction that transfers from the user's wallet to their trading bot wallet
+        # For this, we need to use the Solana web3 library to create a transaction
+        try:
+            from solana.transaction import Transaction
+            from solana.system_program import transfer, TransferParams
+            from solana.publickey import PublicKey
+            from spl.token.constants import TOKEN_PROGRAM_ID
+            import base64
+
+            # Get the user's deposit address (their trading bot wallet)
+            destination_pubkey = PublicKey(user_wallet.public_key)
+
+            # The transaction will be signed by the user's connected wallet (which we don't have access to here)
+            # So we'll return the transaction details for the frontend to construct
+            transaction_details = {
+                "destination": str(destination_pubkey),
+                "amount": amount,
+                "token": "SOL"  # Default to SOL, could be extended for other tokens
+            }
+
+            return jsonify({
+                "success": True,
+                "transaction": transaction_details
+            })
+
+        except ImportError:
+            # If solana libraries aren't available, return basic transaction info
+            return jsonify({
+                "success": True,
+                "transaction": {
+                    "destination": user_wallet.public_key,
+                    "amount": amount,
+                    "token": "SOL"
+                },
+                "message": "Transaction details prepared. Please send funds to the destination address."
+            })
+
+    except Exception as e:
+        print(f"Error creating deposit transaction: {e}")
+        return jsonify({"success": False, "message": f"Error creating deposit transaction: {str(e)}"}), 500
+
 @app.route('/api/withdraw-funds', methods=['POST'])
 @require_login
 def withdraw_funds():
