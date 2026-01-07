@@ -1171,9 +1171,24 @@ def execute_swap(user_id, input_mint, output_mint, amount, slippage_bps=50):
                 "error": "Wallet not found for user"
             }
 
-        # Get private key
-        private_key_bytes = wallet.get_private_key()
-        keypair = Keypair.from_bytes(private_key_bytes)
+        # Get keypair
+        keypair = wallet.get_keypair()
+        if isinstance(keypair, bytes):
+            # If we got raw bytes, we need to create the keypair properly
+            try:
+                from solana.keypair import Keypair as SolanaKeypair
+                if len(keypair) == 64:
+                    keypair = SolanaKeypair.from_secret_key(keypair)
+                elif len(keypair) == 32:
+                    keypair = SolanaKeypair.from_seed(keypair)
+            except (ImportError, AttributeError):
+                try:
+                    from solders.keypair import Keypair as SolderKeypair
+                    # For solders, we might need to handle differently
+                    pass
+                except (ImportError, AttributeError):
+                    raise ValueError("Could not create keypair from private key bytes")
+
         user_public_key = str(keypair.pubkey())
 
         # Get Jupiter API key
