@@ -330,3 +330,94 @@ a:hover {
     color: #e0e0e0;
     border: 1px solid #444;
 }
+
+/* Fix table and transaction history issues */
+.table-responsive {
+    color: #e0e0e0;
+}
+
+#transactionHistory {
+    color: #e0e0e0;
+    background-color: #1e1e1e;
+}
+
+#transactionHistory td,
+#transactionHistory th {
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+#transactionHistory tr {
+    background-color: #2d2d2d;
+}
+
+#transactionHistory tr:nth-of-type(odd) {
+    background-color: #3a3a3a;
+}
+
+/* Fix for "No transactions yet" message */
+#transactionHistory tr:first-child td {
+    background-color: transparent;
+    color: #adb5bd;
+    text-align: center;
+}
+
+/* Improve token balances table */
+#tokenBalancesList td,
+#tokenBalancesList th {
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+#tokenBalancesList tr {
+    background-color: #2d2d2d;
+}
+
+#tokenBalancesList tr:nth-of-type(odd) {
+    background-color: #3a3a3a;
+}
+
+/* Fix for "No tokens found" message */
+#noTokens {
+    color: #adb5bd;
+}
+
+/* Improve form text */
+.form-text {
+    color: #adb5bd;
+}
+
+/* Improve status indicators */
+.alert {
+    color: #e0e0e0;
+}
+
+/* Improve wallet address container */
+#walletAddress {
+    color: #f8f9fa;
+    font-weight: 500;
+}
+
+/* Improve pending approvals */
+#pendingApprovalsList {
+    color: #e0e0e0;
+}
+
+#noPendingApprovals {
+    color: #adb5bd;
+}
+
+/* Improve dark cards */
+.card .text-muted {
+    color: #adb5bd !important;
+}
+
+/* Ensure all text is readable */
+.card .text-dark {
+    color: #e0e0e0 !important;
+}
+
+/* Improve dark backgrounds with text */
+.bg-dark .text-light {
+    color: #f8f9fa !important;
+}
