@@ -875,10 +875,7 @@
                             const { blockhash } = await connection.getLatestBlockhash();
 
                             // Create transaction
-                            const transaction = new solanaWeb3.Transaction({
-                                feePayer: userPublicKey,
-                                blockhash: blockhash,
-                            });
+                            const transaction = new solanaWeb3.Transaction();
 
                             // Add transfer instruction
                             const transferInstruction = solanaWeb3.SystemProgram.transfer({
@@ -888,6 +885,10 @@
                             });
 
                             transaction.add(transferInstruction);
+
+                            // Set the recent blockhash
+                            transaction.recentBlockhash = blockhash;
+                            transaction.feePayer = new solanaWeb3.PublicKey(userPublicKey);
 
                             // Send transaction to user's wallet for confirmation
                             const signature = await window.solana.signAndSendTransaction(transaction);
