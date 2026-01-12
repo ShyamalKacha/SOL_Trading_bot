@@ -1599,13 +1599,18 @@ def withdraw_funds():
     user_id = session['user_id']
     data = request.get_json()
     destination_address = data.get('destination_address')
-    amount = data.get('amount', 0)
+    amount = float(data.get('amount', 0))
+    token_mint = data.get('token_mint') # Mint address of the token to withdraw
+    decimals = int(data.get('decimals', 9)) # Decimals for the token (default 9 for SOL)
 
     if not destination_address:
         return jsonify({"success": False, "message": "Destination address is required"}), 400
 
     if amount <= 0:
         return jsonify({"success": False, "message": "Amount must be greater than 0"}), 400
+        
+    if not token_mint:
+         return jsonify({"success": False, "message": "Token mint is required"}), 400
 
     try:
         # Get user's wallet
@@ -1613,30 +1618,226 @@ def withdraw_funds():
         if not wallet:
             return jsonify({"success": False, "message": "Wallet not found"}), 404
 
-        # Check if user has sufficient balance
-        current_balance = wallet.balance
-        if 'SOL' not in current_balance:
-            current_balance['SOL'] = 0
-
-        if current_balance['SOL'] < amount:
-            return jsonify({"success": False, "message": f"Insufficient balance. Available: {current_balance['SOL']} SOL"}), 400
-
-        # In a real implementation, this would involve:
-        # 1. Creating and signing a transaction to transfer funds
-        # 2. Submitting the transaction to the Solana network
-        # 3. Updating the balance after successful transaction
-
-        # For now, we'll simulate the withdrawal
-        current_balance['SOL'] -= amount
-        wallet.update_balance(current_balance)
-
-        return jsonify({
-            "success": True,
-            "message": f"Successfully initiated withdrawal of {amount} SOL to {destination_address}. Transaction in progress."
-        })
+        # Execute the transfer based on token type
+        if token_mint == "So11111111111111111111111111111111111111112": # SOL
+            result = execute_sol_transfer(user_id, destination_address, amount)
+        else: # SPL Token
+            result = execute_spl_transfer(user_id, destination_address, amount, token_mint, decimals)
+            
+        return jsonify(result)
     except Exception as e:
         print(f"Error withdrawing funds: {e}")
         return jsonify({"success": False, "message": f"Error withdrawing funds: {str(e)}"}), 500
+
+def execute_sol_transfer(user_id, destination_address, amount):
+    """Execute a real SOL transfer"""
+    try:
+        wallet = Wallet.find_by_user_id(user_id)
+        keypair_data = wallet.get_keypair()
+        
+        # Handle keypair if it's bytes
+        try:
+            from solders.keypair import Keypair
+            if isinstance(keypair_data, bytes):
+                if len(keypair_data) == 64:
+                    keypair = Keypair.from_bytes(keypair_data)
+                elif len(keypair_data) == 32:
+                    keypair = Keypair.from_seed(keypair_data)
+                else:
+                    return {"success": False, "message": f"Invalid keypair length: {len(keypair_data)}"}
+            else:
+                keypair = keypair_data
+        except ImportError:
+             return {"success": False, "message": "Could not import solders.keypair. Please ensure solders is installed."}
+        
+        # Determine RPC URL
+        helius_api_key = os.getenv('HELIUS_API_KEY')
+        if helius_api_key:
+            rpc_url = f"https://mainnet.helius-rpc.com/?api-key={helius_api_key}"
+        else:
+            rpc_url = "https://api.mainnet-beta.solana.com"
+            
+        client = Client(rpc_url)
+        
+        # Convert amount to lamports
+        lamports = int(amount * 10**9)
+        
+        # Create transfer instruction
+        try:
+            from solders.system_program import transfer, TransferParams
+            from solana.transaction import Transaction
+            from solders.pubkey import Pubkey
+            
+            # Destination pubkey
+            try:
+                # Try creating Pubkey from string using solders
+                if isinstance(destination_address, str):
+                    dest_pubkey = Pubkey.from_string(destination_address)
+                else:
+                    dest_pubkey = destination_address
+            except Exception as e:
+                return {"success": False, "message": f"Invalid destination address: {str(e)}"}
+
+            # Create transaction
+            # Get latest blockhash (required for recent versions)
+            recent_blockhash_resp = client.get_latest_blockhash()
+            recent_blockhash = recent_blockhash_resp.value.blockhash
+            
+            tx = Transaction(recent_blockhash=recent_blockhash, fee_payer=keypair.pubkey())
+            tx.add(transfer(TransferParams(
+                from_pubkey=keypair.pubkey(),
+                to_pubkey=dest_pubkey,
+                lamports=lamports
+            )))
+            
+            # Sign and send
+            result = client.send_transaction(tx, keypair)
+            
+            signature = str(result.value)
+            print(f"SOL Withdraw Success: https://solscan.io/tx/{signature}")
+            
+            return {
+                "success": True, 
+                "message": f"Successfully sent {amount} SOL. Signature: {signature}",
+                "signature": signature
+            }
+            
+        except Exception as inner_e:
+            print(f"Error building/sending SOL tx: {inner_e}")
+            raise inner_e
+
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+def execute_spl_transfer(user_id, destination_address, amount, token_mint, decimals):
+    """Execute a real SPL token transfer"""
+    try:
+        wallet = Wallet.find_by_user_id(user_id)
+        keypair_data = wallet.get_keypair()
+        
+        # Handle keypair if it's bytes
+        try:
+            from solders.keypair import Keypair
+            if isinstance(keypair_data, bytes):
+                if len(keypair_data) == 64:
+                    keypair = Keypair.from_bytes(keypair_data)
+                elif len(keypair_data) == 32:
+                    keypair = Keypair.from_seed(keypair_data)
+                else:
+                    return {"success": False, "message": f"Invalid keypair length: {len(keypair_data)}"}
+            else:
+                keypair = keypair_data
+        except ImportError:
+             return {"success": False, "message": "Could not import solders.keypair. Please ensure solders is installed."}
+        
+        # Determine RPC URL
+        helius_api_key = os.getenv('HELIUS_API_KEY')
+        if helius_api_key:
+            rpc_url = f"https://mainnet.helius-rpc.com/?api-key={helius_api_key}"
+        else:
+            rpc_url = "https://api.mainnet-beta.solana.com"
+            
+        client = Client(rpc_url)
+        
+        # Convert amount to token units
+        # Handle float precision issues
+        amount_units = int(round(amount * (10**decimals)))
+        
+        print(f"DEBUG: SPL Transfer - Amount: {amount}, Decimals: {decimals}, Units: {amount_units}")
+        
+        # Imports for SPL token transfer
+        from spl.token.instructions import get_associated_token_address, transfer_checked, TransferCheckedParams, create_associated_token_account
+        from solana.transaction import Transaction
+        from solders.pubkey import Pubkey
+        from spl.token.constants import TOKEN_PROGRAM_ID
+        
+        # Handle Pubkey types compatibility
+        try:
+            if isinstance(token_mint, str):
+                token_mint_pubkey = Pubkey.from_string(token_mint)
+            else:
+                token_mint_pubkey = token_mint
+                
+            if isinstance(destination_address, str):
+                dest_pubkey_input = Pubkey.from_string(destination_address)
+            else:
+                dest_pubkey_input = destination_address
+                
+            source_owner_pubkey = keypair.pubkey()
+        except Exception as e:
+            return {"success": False, "message": f"Invalid address format: {str(e)}"}
+
+        # Determine destination generic logic
+        # Check if the inputs destination is a Wallet (System Account) or a Token Account
+        dest_account_info_resp = client.get_account_info(dest_pubkey_input)
+        
+        is_dest_token_account = False
+        if dest_account_info_resp.value:
+            # Check owner
+            owner_bytes = bytes(dest_account_info_resp.value.owner)
+            token_program_bytes = bytes(TOKEN_PROGRAM_ID)
+            if owner_bytes == token_program_bytes:
+                is_dest_token_account = True
+        
+        # Get associated token accounts calculation
+        source_ata = get_associated_token_address(source_owner_pubkey, token_mint_pubkey)
+        
+        if is_dest_token_account:
+            # Destination IS the token account. Transfer directly to it.
+            dest_ata = dest_pubkey_input
+            print(f"DEBUG: Destination {destination_address} is a Token Account. Transferring directly.")
+        else:
+            # Destination is a Wallet Address. Derive the ATA.
+            dest_ata = get_associated_token_address(dest_pubkey_input, token_mint_pubkey)
+            print(f"DEBUG: Destination {destination_address} is a Wallet. Deriving ATA: {dest_ata}")
+
+        # Get latest blockhash
+        recent_blockhash_resp = client.get_latest_blockhash()
+        recent_blockhash = recent_blockhash_resp.value.blockhash
+
+        # Create transaction
+        tx = Transaction(recent_blockhash=recent_blockhash, fee_payer=source_owner_pubkey)
+        
+        # Check if destination ATA exists (Only if we are using derived ATA)
+        if not is_dest_token_account:
+            dest_ata_info = client.get_account_info(dest_ata)
+            if dest_ata_info.value is None:
+                # Destination ATA does not exist, create it
+                print(f"DEBUG: Creating missing ATA {dest_ata} for owner {dest_pubkey_input}")
+                tx.add(create_associated_token_account(
+                    payer=source_owner_pubkey,
+                    owner=dest_pubkey_input,
+                    mint=token_mint_pubkey
+                ))
+
+        tx.add(transfer_checked(TransferCheckedParams(
+            program_id=TOKEN_PROGRAM_ID,
+            source=source_ata,
+            mint=token_mint_pubkey,
+            dest=dest_ata,
+            owner=source_owner_pubkey,
+            amount=amount_units,
+            decimals=decimals,
+            signers=[source_owner_pubkey] # Added signers list
+        )))
+        
+        # Sign and send
+        result = client.send_transaction(tx, keypair)
+        signature = str(result.value)
+        print(f"SPL Withdraw Success: https://solscan.io/tx/{signature}")
+        
+        return {
+            "success": True, 
+            "message": f"Successfully sent {amount} tokens. Signature: {signature}",
+            "signature": signature
+        }
+
+    except Exception as e:
+        print(f"SPL Transfer Error: {e}")
+        # Check for module not found error to give better feedback
+        if "No module named" in str(e):
+             return {"success": False, "message": f"Server Configuration Error: {str(e)}"}
+        return {"success": False, "message": str(e)}
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

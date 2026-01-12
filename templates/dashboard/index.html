@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,6 +10,7 @@
     <!-- Solana Web3 Library -->
     <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 </head>
+
 <body class="bg-dark text-light">
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
@@ -36,7 +38,8 @@
                 <div class="card bg-light text-dark">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Your Wallet</h5>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="refreshWalletData()" title="Refresh Balances">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="refreshWalletData()"
+                            title="Refresh Balances">
                             ↻ Refresh
                         </button>
                     </div>
@@ -100,28 +103,40 @@
                                 <h6>Add Funds</h6>
                                 <div class="mb-3">
                                     <label for="addAmount" class="form-label">Amount to Add</label>
-                                    <input type="number" class="form-control" id="addAmount" placeholder="Enter amount" min="0" step="0.01">
+                                    <input type="number" class="form-control" id="addAmount" placeholder="Enter amount"
+                                        min="0" step="0.01">
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Your Deposit Address</label>
                                     <div class="input-group">
                                         <input type="text" class="form-control" id="depositAddress" readonly>
-                                        <button class="btn btn-outline-secondary" type="button" onclick="copyDepositAddress()" title="Copy Address">
+                                        <button class="btn btn-outline-secondary" type="button"
+                                            onclick="copyDepositAddress()" title="Copy Address">
                                             Copy
                                         </button>
                                     </div>
                                 </div>
-                                <button class="btn btn-success" onclick="connectWalletAndDeposit()">Connect Wallet & Deposit</button>
+                                <button class="btn btn-success" onclick="connectWalletAndDeposit()">Connect Wallet &
+                                    Deposit</button>
                             </div>
                             <div class="col-md-6">
                                 <h6>Withdraw Funds</h6>
                                 <div class="mb-3">
+
                                     <label for="withdrawAddress" class="form-label">Destination Address</label>
-                                    <input type="text" class="form-control" id="withdrawAddress" placeholder="Enter wallet address">
+                                    <input type="text" class="form-control" id="withdrawAddress"
+                                        placeholder="Enter wallet address">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="withdrawTokenSelect" class="form-label">Select Token</label>
+                                    <select class="form-select" id="withdrawTokenSelect">
+                                        <option value="" disabled selected>Select a token...</option>
+                                    </select>
                                 </div>
                                 <div class="mb-3">
                                     <label for="withdrawAmount" class="form-label">Amount to Withdraw</label>
-                                    <input type="number" class="form-control" id="withdrawAmount" placeholder="Enter amount" min="0" step="0.01">
+                                    <input type="number" class="form-control" id="withdrawAmount"
+                                        placeholder="Enter amount" min="0" step="0.01">
                                 </div>
                                 <button class="btn btn-danger" onclick="withdrawFunds()">Withdraw Funds</button>
                             </div>
@@ -186,29 +201,34 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <label class="form-label">Base Price ($)</label>
-                            <div class="form-control-plaintext bg-light p-2 rounded">$<span id="autoBasePrice">--</span></div>
+                            <div class="form-control-plaintext bg-light p-2 rounded">$<span id="autoBasePrice">--</span>
+                            </div>
                             <div class="form-text">Automatically set to current market price when trading starts</div>
                         </div>
 
                         <div class="mb-3">
                             <label for="upPercentage" class="form-label">Sell High Percentage (%)</label>
-                            <input type="number" class="form-control" id="upPercentage" placeholder="Enter up percentage" value="5" min="0" step="0.1">
+                            <input type="number" class="form-control" id="upPercentage"
+                                placeholder="Enter up percentage" value="5" min="0" step="0.1">
                         </div>
 
                         <div class="mb-3">
                             <label for="downPercentage" class="form-label">Buy Low Percentage (%)</label>
                             <div class="form-text">Enter down percentage</div>
-                            <input type="number" class="form-control" id="downPercentage" placeholder="Enter down percentage" value="3" min="0" step="0.1">
+                            <input type="number" class="form-control" id="downPercentage"
+                                placeholder="Enter down percentage" value="3" min="0" step="0.1">
                         </div>
 
                         <div class="mb-3">
                             <label for="tradeAmount" class="form-label">Trade Amount</label>
-                            <input type="number" class="form-control" id="tradeAmount" placeholder="Enter trade amount" value="10" min="0" step="0.01">
+                            <input type="number" class="form-control" id="tradeAmount" placeholder="Enter trade amount"
+                                value="10" min="0" step="0.01">
                         </div>
 
                         <div class="mb-3">
                             <label for="partsInput" class="form-label">Number of Parts</label>
-                            <input type="number" class="form-control" id="partsInput" placeholder="Enter number of parts" value="1" min="1" step="1">
+                            <input type="number" class="form-control" id="partsInput"
+                                placeholder="Enter number of parts" value="1" min="1" step="1">
                             <div class="form-text">Total trade amount will be divided into this many parts</div>
                         </div>
 
@@ -320,7 +340,7 @@
         let fullWalletAddress = '';
 
         // Start trading button event
-        startTradingBtn.addEventListener('click', async function() {
+        startTradingBtn.addEventListener('click', async function () {
             // Determine which token address to use
             let selectedToken = document.getElementById('selectedToken').value;
             const customTokenAddress = document.getElementById('customTokenAddress').value.trim();
@@ -395,7 +415,7 @@
         });
 
         // Stop trading button event
-        stopTradingBtn.addEventListener('click', async function() {
+        stopTradingBtn.addEventListener('click', async function () {
             try {
                 const response = await fetch('/api/stop-trading', {
                     method: 'POST',
@@ -511,6 +531,13 @@
 
             const tokenBalancesList = document.getElementById('tokenBalancesList');
             const noTokens = document.getElementById('noTokens');
+            const withdrawSelect = document.getElementById('withdrawTokenSelect');
+
+            // Save currently selected value to restore if possible
+            const currentSelection = withdrawSelect.value;
+
+            // Clear existing options except the placeholder
+            withdrawSelect.innerHTML = '<option value="" disabled selected>Select a token...</option>';
 
             if (balances.length === 0) {
                 noTokens.style.display = 'block';
@@ -522,6 +549,7 @@
             tokenBalancesList.innerHTML = '';
 
             balances.forEach(balance => {
+                // Add to table
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>
@@ -531,7 +559,27 @@
                     <td class="text-end">${balance.balance ? balance.balance.toFixed(6) : '0.000000'}</td>
                 `;
                 tokenBalancesList.appendChild(row);
+
+                // Add to withdraw dropdown
+                // Only add if balance > 0
+                if (balance.balance > 0) {
+                    const option = document.createElement('option');
+                    option.value = balance.mint;
+                    option.text = `${balance.token} (${balance.balance.toFixed(4)})`;
+                    option.dataset.decimals = balance.decimals;
+                    withdrawSelect.appendChild(option);
+                }
             });
+
+            // Restore selection if it still exists
+            if (currentSelection) {
+                for (let i = 0; i < withdrawSelect.options.length; i++) {
+                    if (withdrawSelect.options[i].value === currentSelection) {
+                        withdrawSelect.value = currentSelection;
+                        break;
+                    }
+                }
+            }
         }
 
         // Function to fetch wallet info
@@ -610,12 +658,12 @@
         // Function to add funds to wallet
         async function addFunds() {
             const amount = document.getElementById('addAmount').value;
-            
+
             if (!amount || parseFloat(amount) <= 0) {
                 alert('Please enter a valid amount');
                 return;
             }
-            
+
             try {
                 const response = await fetch('/api/add-funds', {
                     method: 'POST',
@@ -624,9 +672,9 @@
                     },
                     body: JSON.stringify({ amount: parseFloat(amount) })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     alert('Funds added successfully!');
                     refreshWalletData();
@@ -643,34 +691,49 @@
         async function withdrawFunds() {
             const address = document.getElementById('withdrawAddress').value;
             const amount = document.getElementById('withdrawAmount').value;
-            
+            const tokenSelect = document.getElementById('withdrawTokenSelect');
+            const selectedOption = tokenSelect.options[tokenSelect.selectedIndex];
+
             if (!address) {
                 alert('Please enter a destination address');
                 return;
             }
-            
+
             if (!amount || parseFloat(amount) <= 0) {
                 alert('Please enter a valid amount');
                 return;
             }
-            
+
+            if (!selectedOption || !selectedOption.value) {
+                alert('Please select a token to withdraw');
+                return;
+            }
+
+            const tokenMint = selectedOption.value;
+            const decimals = parseInt(selectedOption.dataset.decimals || 9);
+
             try {
                 const response = await fetch('/api/withdraw-funds', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ 
+                    body: JSON.stringify({
                         destination_address: address,
-                        amount: parseFloat(amount) 
+                        amount: parseFloat(amount),
+                        token_mint: tokenMint,
+                        decimals: decimals
                     })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
-                    alert('Funds withdrawn successfully!');
+                    alert('Withdrawal initiated successfully!\n' + (data.message || ''));
                     refreshWalletData();
+                    // Clear inputs
+                    document.getElementById('withdrawAmount').value = '';
+                    document.getElementById('withdrawAddress').value = '';
                 } else {
                     alert('Error withdrawing funds: ' + data.message);
                 }
@@ -930,4 +993,5 @@
         }
     </script>
 </body>
+
 </html>
