@@ -1612,6 +1612,8 @@ def withdraw_funds():
     if not token_mint:
          return jsonify({"success": False, "message": "Token mint is required"}), 400
 
+    print(f"DEBUG: Withdrawal Request - Dest: {destination_address}, Amount: {amount}, Mint: {token_mint}, Decimals: {decimals}")
+
     try:
         # Get user's wallet
         wallet = Wallet.find_by_user_id(user_id)
