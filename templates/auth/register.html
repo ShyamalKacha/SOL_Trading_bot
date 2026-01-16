@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register | Nebula Trader</title>
+    <title>Register | AutoSOL</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -39,16 +39,16 @@
             <div class="glass-header text-center justify-content-center py-4">
                 <div class="d-flex align-items-center gap-2">
                     <i class="fa-brands fa-solana text-primary fa-2x"></i>
-                    <span class="tracking-tight h4 mb-0">NEBULA<span class="text-primary">TRADER</span></span>
+                    <span class="tracking-tight h4 mb-0">Auto<span class="text-primary">SOL</span></span>
                 </div>
             </div>
 
             <div class="glass-body p-4">
-                <h5 class="font-mono text-center text-muted mb-4 tracking-wide">ESTABLISH NEW IDENTITY</h5>
+                <h5 class="font-mono text-center text-muted mb-4 tracking-wide">CREATE ACCOUNT</h5>
 
                 <form id="registerForm">
                     <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
+                        <label for="email" class="form-label">Email Address</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="fas fa-envelope"></i></span>
                             <input type="email" class="form-control font-mono" id="email" name="email"
@@ -76,7 +76,7 @@
 
                     <div class="d-grid mb-3">
                         <button type="submit" class="btn btn-primary btn-lg font-mono">
-                            <i class="fas fa-user-plus me-2"></i>CREATE ACCOUNT
+                            <i class="fas fa-user-plus me-2"></i>REGISTER
                         </button>
                     </div>
                 </form>
@@ -84,8 +84,8 @@
                 <div id="message"></div>
 
                 <div class="text-center mt-3 pt-3 border-top border-secondary border-opacity-25">
-                    <p class="text-muted small mb-0">Identity exists?
-                        <a href="{{ url_for('login') }}" class="text-accent fw-bold font-mono">INITIATE SESSION</a>
+                    <p class="text-muted small mb-0">Already have an account?
+                        <a href="{{ url_for('login') }}" class="text-accent fw-bold font-mono">Login</a>
                     </p>
                 </div>
             </div>
@@ -140,9 +140,9 @@
                     document.getElementById('registerForm').innerHTML = `
                         <div class="mb-4">
                             <div class="alert alert-info font-mono small">
-                                <i class="fas fa-paper-plane me-2"></i>Verification code sent to ${email}
+                                <i class="fas fa-paper-plane me-2"></i>OTP sent to ${email}
                             </div>
-                            <label for="otp" class="form-label">Verification Code (OTP)</label>
+                            <label for="otp" class="form-label">One-Time Password (OTP)</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-shield-alt"></i></span>
                                 <input type="text" class="form-control font-mono text-center fw-bold letter-spacing-2" id="otp" name="otp" required style="letter-spacing: 3px;">
@@ -150,7 +150,7 @@
                         </div>
                         <div class="d-grid">
                             <button type="button" class="btn btn-success btn-lg font-mono" onclick="verifyOTP('${email}')">
-                                <i class="fas fa-check-circle me-2"></i>VERIFY IDENTITY
+                                <i class="fas fa-check-circle me-2"></i>VERIFY OTP
                             </button>
                         </div>
                     `;
@@ -191,7 +191,7 @@
 
                 if (result.success) {
                     document.getElementById('message').innerHTML =
-                        `<div class="alert alert-success font-mono small"><i class="fas fa-check-double me-2"></i>Identity Verified. Redirecting...</div>`;
+                        `<div class="alert alert-success font-mono small"><i class="fas fa-check-double me-2"></i>Registration successful. Redirecting...</div>`;
                     setTimeout(() => {
                         window.location.href = '/login';
                     }, 2000);

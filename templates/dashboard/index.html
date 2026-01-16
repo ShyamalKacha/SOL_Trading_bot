@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard | Nebula Trader{% endblock %}
+{% block title %}Dashboard | AutoSOL{% endblock %}
 
 {% block content %}
 <div class="container-xl pb-5">
@@ -9,13 +9,13 @@
         <div class="col-md-8">
             <h6 class="text-primary tracking-wide text-uppercase mb-2">System Status: Online</h6>
             <h1 class="display-5 fw-bold mb-0">TRADING <span class="text-primary-gradient">COMMAND CENTER</span></h1>
-            <p class="text-muted mt-2 mb-0">Real-time market analysis and automated execution engine.</p>
+            <p class="text-muted mt-2 mb-0">Real-time and automated trade execution engine.</p>
         </div>
         <div class="col-md-4 text-md-end mt-3 mt-md-0">
             <div class="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill"
                 style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);">
                 <span class="status-dot online"></span>
-                <span class="font-mono text-light" id="clock">00:00:00 UTC</span>
+                <span class="font-mono text-light" id="clock">00:00:00</span>
             </div>
         </div>
     </div>
@@ -35,7 +35,7 @@
             <div class="row g-4">
                 <!-- Wallet ID & Identity -->
                 <div class="col-lg-5">
-                    <label class="form-label">Active Identity</label>
+                    <label class="form-label">Wallet Address</label>
                     <div class="input-group mb-3">
                         <div class="wallet-address flex-grow-1 font-mono text-primary" id="walletAddress">
                             <i class="fas fa-circle-notch fa-spin me-2"></i> Connecting to Solana...
@@ -85,14 +85,13 @@
 
     <!-- Funding Operations (Collapsible) -->
     <div class="glass-panel">
-        <div class="glass-header" data-bs-toggle="collapse" data-bs-target="#fundingCollapse" style="cursor: pointer;">
+        <div class="glass-header">
             <div class="d-flex align-items-center gap-2">
                 <i class="fa-solid fa-money-bill-transfer text-success"></i>
                 <h5 class="font-mono tracking-tight">FUNDING OPERATIONS</h5>
             </div>
-            <i class="fas fa-chevron-down text-muted"></i>
         </div>
-        <div id="fundingCollapse" class="collapse">
+        <div>
             <div class="glass-body border-top border-secondary border-opacity-10">
                 <div class="row g-4">
                     <!-- Deposit -->
@@ -108,15 +107,7 @@
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Deposit Address</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control font-mono" id="depositAddress" readonly>
-                                <button class="btn btn-outline-secondary" type="button" onclick="copyDepositAddress()">
-                                    <i class="fas fa-copy"></i>
-                                </button>
-                            </div>
-                        </div>
+
 
                         <button class="btn btn-success w-100" onclick="connectWalletAndDeposit()">
                             <i class="fas fa-plus-circle me-2"></i>Execute Deposit
@@ -177,13 +168,8 @@
                         </select>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Execution Mode</label>
-                        <select class="form-select font-mono" id="tradingModeSelect">
-                            <option value="automatic">⚡ Fully Autonomous</option>
-                            <option value="user">🛡️ Semi-Autonomous (Approval)</option>
-                        </select>
-                    </div>
+                    <!-- Hidden Execution Mode (Locked to Automatic) -->
+                    <input type="hidden" id="tradingModeSelect" value="automatic">
 
                     <div class="mb-3">
                         <label class="form-label">Target Asset</label>
@@ -258,7 +244,7 @@
                         <i class="fa-solid fa-satellite-dish text-info"></i>
                         <h5 class="font-mono tracking-tight">LIVE MONITOR</h5>
                     </div>
-                    <span class="badge bg-secondary font-mono" id="lastUpdated">SYNCING</span>
+
                 </div>
                 <div class="glass-body">
                     <div class="d-flex align-items-center justify-content-between mb-4 p-3 rounded"
@@ -346,7 +332,7 @@
     // Clock update for command center
     setInterval(() => {
         const now = new Date();
-        document.getElementById('clock').textContent = now.toISOString().split('T')[1].split('.')[0] + ' UTC';
+        document.getElementById('clock').textContent = now.toLocaleTimeString();
     }, 1000);
 </script>
 
@@ -490,7 +476,7 @@
                 const priceValue = data.current_price;
                 const displayPrice = priceValue < 0.01 ? priceValue.toFixed(8) : priceValue.toFixed(4);
                 currentPrice.textContent = '$' + displayPrice;
-                lastUpdated.textContent = new Date().toLocaleTimeString();
+                // lastUpdated removed
             }
 
             // Update dynamic base price
