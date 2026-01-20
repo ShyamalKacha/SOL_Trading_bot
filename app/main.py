@@ -363,10 +363,9 @@ def get_wallet_balance_default():
         # Fetch real balance from Solana blockchain
         response = get_wallet_balance(wallet.public_key, "mainnet")
         # Update the wallet's balance in the database
-        if hasattr(response, 'get_json'):
-            response_data = response.get_json()
-            if response_data.get("success"):
-                wallet.update_balance(response_data.get("balances", []))
+        # Response is now a dict, not a Response object
+        if isinstance(response, dict) and response.get("success"):
+            wallet.update_balance(response.get("balances", []))
         return response
     except Exception as e:
         print(f"Error in get_wallet_balance_default: {e}")
@@ -383,11 +382,11 @@ def get_wallet_balance(wallet_address, network="mainnet"):
     try:
         # Validate wallet address format (basic check)
         if len(wallet_address) < 32 or len(wallet_address) < 32:
-            return jsonify({
+            return {
                 "success": False,
                 "message": "Invalid wallet address format",
                 "balances": []
-            })
+            }
 
         # Determine the RPC URL based on the network and check for Helius API key
         helius_api_key = os.getenv('HELIUS_API_KEY')
@@ -481,18 +480,18 @@ def get_wallet_balance(wallet_address, network="mainnet"):
         else:
             print(f"SOL balance query failed for {wallet_address}: {sol_result}")
 
-        return jsonify({
+        return {
             "success": True,
             "balances": balances
-        })
+        }
 
     except Exception as e:
         print(f"Error in get_wallet_balance: {e}")
-        return jsonify({
+        return {
             "success": False,
             "message": f"Error connecting to wallet: {str(e)}",
             "balances": []
-        })
+        }
 
 @app.route('/api/get-price', methods=['POST'])
 def get_price():
@@ -706,6 +705,9 @@ def reject_trade():
 
 def trading_algorithm(user_id, base_price, up_percentage, down_percentage, selected_token, trade_amount, parts, network="mainnet", trading_mode="automatic"):
     """Main trading algorithm with correct laddering logic - each transaction updates the base price"""
+    # Ensure application context is active for this thread
+    app.app_context().push()
+
     trading_state = get_user_trading_state(user_id)
     trading_state['is_running'] = True
     trading_state['last_action'] = None
@@ -1185,8 +1187,10 @@ def execute_swap(user_id, input_mint, output_mint, amount, slippage_bps=50):
             except (ImportError, AttributeError):
                 try:
                     from solders.keypair import Keypair as SolderKeypair
-                    # For solders, we might need to handle differently
-                    pass
+                    if len(keypair) == 64:
+                        keypair = SolderKeypair.from_bytes(keypair)
+                    elif len(keypair) == 32:
+                        keypair = SolderKeypair.from_seed(keypair)
                 except (ImportError, AttributeError):
                     raise ValueError("Could not create keypair from private key bytes")
 
