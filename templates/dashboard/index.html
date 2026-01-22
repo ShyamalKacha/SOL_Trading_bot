@@ -4,6 +4,7 @@
 
 {% block content %}
 <div class="container-xl pb-5">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- Header Section -->
     <div class="row align-items-end mb-4">
         <div class="col-md-8">
@@ -99,7 +100,7 @@
                         <h6 class="text-success mb-3"><i class="fas fa-arrow-down me-2"></i>Inbound Transfer</h6>
 
                         <div class="mb-3">
-                            <label class="form-label">Simulation - Add Funds</label>
+                            <label class="form-label">Deposit SOL</label>
                             <div class="input-group">
                                 <span class="input-group-text">SOL</span>
                                 <input type="number" class="form-control font-mono" id="addAmount" placeholder="0.00"
@@ -107,10 +108,14 @@
                             </div>
                         </div>
 
+                        <div id="qrcodeContainer" class="d-flex justify-content-center mb-3 p-3 bg-white rounded"
+                            style="display: none !important;"></div>
+                        <div id="qrcodeHelp" class="text-center text-muted small mb-3" style="display: none;">
+                            Scan with your Solana Wallet
+                        </div>
 
-
-                        <button class="btn btn-success w-100" onclick="connectWalletAndDeposit()">
-                            <i class="fas fa-plus-circle me-2"></i>Execute Deposit
+                        <button class="btn btn-success w-100" onclick="generateDepositQR()">
+                            <i class="fas fa-qrcode me-2"></i>Generate QR Code
                         </button>
                     </div>
 
@@ -530,7 +535,7 @@
             statusIndicator.className = 'status-indicator status-active';
             statusText.textContent = 'ACTIVE';
             statusText.className = 'font-mono fw-bold text-success';
-            
+
             // Disable Start Button & Enable Stop Button
             startTradingBtn.disabled = true;
             startTradingBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>SEQUENCE RUNNING';
@@ -539,7 +544,7 @@
             statusIndicator.className = 'status-indicator status-inactive';
             statusText.textContent = 'STANDBY';
             statusText.className = 'font-mono fw-bold text-muted';
-            
+
             // Enable Start Button
             startTradingBtn.disabled = false;
             startTradingBtn.innerHTML = '<i class="fa-solid fa-play me-2"></i>INITIATE SEQUENCE';
@@ -704,36 +709,47 @@
         }
     }
 
-    // Function to add funds to wallet
-    async function addFunds() {
+    // Function to generate Deposit QR Code
+    function generateDepositQR() {
         const amount = document.getElementById('addAmount').value;
+        const qrContainer = document.getElementById('qrcodeContainer');
+        const qrHelp = document.getElementById('qrcodeHelp');
 
         if (!amount || parseFloat(amount) <= 0) {
             showToast('Please enter a valid amount', 'warning');
             return;
         }
 
+        if (!fullWalletAddress) {
+            showToast('Wallet address not loaded yet', 'warning');
+            return;
+        }
+
+        // Clear previous QR
+        qrContainer.innerHTML = '';
+        qrContainer.style.setProperty('display', 'flex', 'important');
+        qrHelp.style.display = 'block';
+
+        // Construct Solana Pay URL
+        // Format: solana:<address>?amount=<amount>&label=<label>&message=<message>
+        const label = encodeURIComponent("AutoSOL Funding");
+        const message = encodeURIComponent("Deposit to Trading Bot");
+        const solanaUrl = `solana:${fullWalletAddress}?amount=${amount}&label=${label}&message=${message}`;
+
+        // Generate QR code
         try {
-            const response = await fetch('/api/add-funds', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ amount: parseFloat(amount) })
+            new QRCode(qrContainer, {
+                text: solanaUrl,
+                width: 180,
+                height: 180,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
             });
-
-            const data = await response.json();
-
-            if (data.success) {
-                showToast('Funds deposited successfully', 'success');
-                refreshWalletData();
-                document.getElementById('addAmount').value = '';
-            } else {
-                showToast('Deposit failed: ' + data.message, 'danger');
-            }
-        } catch (error) {
-            console.error('Error adding funds:', error);
-            showToast('Deposit failed', 'danger');
+            showToast('QR Code Generated', 'success');
+        } catch (e) {
+            console.error("QR Generation Error:", e);
+            showToast('Failed to generate QR Code', 'danger');
         }
     }
 
@@ -801,8 +817,7 @@
         }
     }
 
-    // Connect wallet alias for addFunds
-    const connectWalletAndDeposit = addFunds;
+
 
     // Function to update transaction history table
     function updateTransactionHistory(transactions) {
