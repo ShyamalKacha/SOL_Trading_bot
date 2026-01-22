@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Trade History | AutoSOL{% endblock %}
+
+{% block content %}
+<div class="container-xl pb-5">
+    <!-- Page Header -->
+    <div class="d-flex align-items-center justify-content-between mb-4 mt-4">
+        <div>
+            <h1 class="display-6 fw-bold mb-0">TRADE <span class="text-info">HISTORY</span></h1>
+            <p class="text-muted mt-1 mb-0 font-mono">Archive of executed transactions and performance analysis.</p>
+        </div>
+        <a href="/dashboard" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Trade History Panel -->
+    <div class="glass-panel text-white">
+        <div class="glass-header">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fa-solid fa-file-invoice-dollar text-info"></i>
+                <h5 class="font-mono tracking-tight mb-0">TRADE OPERATIONS LOG</h5>
+            </div>
+        </div>
+        <div class="glass-body">
+            <div class="row g-3 align-items-end mb-4">
+                <div class="col-md-3">
+                    <label class="form-label text-muted small text-uppercase">Select Date</label>
+                    <input type="date" class="form-control font-mono" id="historyDate">
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100" onclick="searchTradeHistory()">
+                        <i class="fas fa-search me-2"></i>SEARCH
+                    </button>
+                </div>
+                <div class="col-md-7 text-end">
+                    <div class="p-3 rounded bg-dark bg-opacity-50 d-inline-block text-start border border-secondary border-opacity-25"
+                        style="min-width: 250px;">
+                        <div class="text-muted small text-uppercase mb-1">Total P&L (Selected Date)</div>
+                        <div class="display-6 font-mono fw-bold" id="dailyPnl">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover table-dark bg-transparent mb-0 align-middle">
+                    <thead>
+                        <tr class="text-uppercase small text-muted font-mono">
+                            <th>Time</th>
+                            <th>Asset</th>
+                            <th>Action</th>
+                            <th>Price</th>
+                            <th>Amount</th>
+                            <th>P&L</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tradeHistoryBody" class="font-mono">
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="fa-solid fa-magnifying-glass fa-2x mb-3 opacity-25"></i>
+                                <br>
+                                Select a date and click search to view history
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Function to search trade history
+    async function searchTradeHistory() {
+        const dateInput = document.getElementById('historyDate');
+        const date = dateInput.value;
+
+        if (!date) {
+            showToast('Please select a date', 'warning');
+            return;
+        }
+
+        const tbody = document.getElementById('tradeHistoryBody');
+        const pnlDisplay = document.getElementById('dailyPnl');
+
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted"><div class="spinner-border spinner-border-sm text-primary mb-2"></div><br>Loading trade data...</td></tr>';
+
+        try {
+            const response = await fetch('/api/trades/history', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ date: date })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Update P&L
+                const pnl = data.total_pnl;
+                const pnlFormatted = Math.abs(pnl).toFixed(4);
+
+                if (pnl > 0) {
+                    pnlDisplay.textContent = '+$' + pnlFormatted;
+                    pnlDisplay.className = 'display-6 font-mono fw-bold text-success';
+                } else if (pnl < 0) {
+                    pnlDisplay.textContent = '-$' + pnlFormatted;
+                    pnlDisplay.className = 'display-6 font-mono fw-bold text-danger';
+                } else {
+                    pnlDisplay.textContent = '$' + pnlFormatted;
+                    pnlDisplay.className = 'display-6 font-mono fw-bold text-muted';
+                }
+
+                // Update Table
+                tbody.innerHTML = '';
+
+                if (data.trades.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted">NO TRADES FOUND FOR THIS DATE</td></tr>';
+                    return;
+                }
+
+                data.trades.forEach(trade => {
+                    const row = document.createElement('tr');
+
+                    // Format timestamp to time only
+                    const timeStr = new Date(trade.timestamp).toLocaleTimeString();
+
+                    // Action badge
+                    let actionBadge = '';
+                    if (trade.action === 'buy') actionBadge = '<span class="badge bg-success bg-opacity-75">BUY</span>';
+                    else if (trade.action === 'sell') actionBadge = '<span class="badge bg-danger bg-opacity-75">SELL</span>';
+                    else actionBadge = `<span class="badge bg-secondary">${trade.action.toUpperCase()}</span>`;
+
+                    // P&L styling
+                    let pnlHtml = '<span class="text-muted">-</span>';
+                    if (trade.pnl !== null) {
+                        const pnlVal = trade.pnl;
+                        const pnlClass = pnlVal >= 0 ? 'text-success' : 'text-danger';
+                        const pnlSign = pnlVal >= 0 ? '+' : '';
+                        pnlHtml = `<span class="${pnlClass} fw-bold">${pnlSign}$${pnlVal.toFixed(4)}</span>`;
+                    }
+
+                    // Use Bootstrap class adjustments for better readability in dark mode
+                    row.innerHTML = `
+                        <td>${timeStr}</td>
+                        <td class="fw-bold text-white">${trade.token_symbol || 'UNK'}</td>
+                        <td>${actionBadge}</td>
+                        <td class="text-white-50">$${trade.price.toFixed(4)}</td>
+                        <td class="text-white-50">${trade.amount.toFixed(4)}</td>
+                        <td>${pnlHtml}</td>
+                        <td><span class="badge bg-secondary bg-opacity-25 text-light border border-secondary border-opacity-25">${trade.status.toUpperCase()}</span></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+            } else {
+                showToast(data.message || 'Error loading history', 'danger');
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-danger">ERROR LOADING DATA</td></tr>';
+            }
+        } catch (error) {
+            console.error('Error searching history:', error);
+            showToast('Failed to load trade history', 'danger');
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-danger">CONNECTION ERROR</td></tr>';
+        }
+    }
+
+    // Set default date to today
+    document.addEventListener('DOMContentLoaded', function () {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('historyDate').value = today;
+        // Optionally auto-search on load
+        searchTradeHistory();
+    });
+</script>
+{% endblock %}

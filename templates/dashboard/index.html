@@ -108,7 +108,9 @@
                             </div>
                         </div>
 
-                        <div id="qrcodeContainer" class="qr-code-container mb-3" style="display: none !important;">
+                        <div id="qrcodeContainer"
+                            class="qr-code-container mb-3 d-flex justify-content-center p-3 rounded"
+                            style="display: none !important; background-color: #000;">
                         </div>
                         <div id="qrcodeHelp" class="text-center text-muted small mb-3" style="display: none;">
                             Scan with your Solana Wallet
@@ -301,13 +303,18 @@
         </div>
     </div>
 
+
+
     <!-- Transaction History -->
     <div class="glass-panel">
-        <div class="glass-header">
+        <div class="glass-header d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-2">
                 <i class="fa-solid fa-list-ul text-white"></i>
-                <h5 class="font-mono tracking-tight">ORDER LOG</h5>
+                <h5 class="font-mono tracking-tight mb-0">ORDER LOG</h5>
             </div>
+            <a href="/trade-history" class="btn btn-sm btn-outline-info font-mono">
+                <i class="fa-solid fa-clock-rotate-left me-1"></i> View Past Trade
+            </a>
         </div>
         <div class="glass-body p-0">
             <div class="table-responsive">
@@ -345,7 +352,8 @@
     }, 1000);
 </script>
 
-<!-- Existing Scripts (Preserved for Logic) -->
+
+
 <script>
     // DOM Elements - Mapping to ID preserved elements
     const startTradingBtn = document.getElementById('startTradingBtn');
@@ -695,6 +703,9 @@
 
         await fetchWalletInfo();
         await fetchTokenBalances();
+        if (typeof updateTopBarBalances === 'function') {
+            await updateTopBarBalances();
+        }
 
         setTimeout(() => {
             icons.forEach(i => i.classList.remove('fa-spin'));
@@ -747,8 +758,8 @@
                 text: solanaUrl,
                 width: 180,
                 height: 180,
-                colorDark: "#000000",
-                colorLight: "#ffffff",
+                colorDark: "#ffffff",
+                colorLight: "#000000",
                 correctLevel: QRCode.CorrectLevel.M
             });
             showToast('QR Code Generated', 'success');

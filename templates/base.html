@@ -58,10 +58,21 @@
                 <div class="mx-auto"></div>
 
                 <div class="d-flex align-items-center gap-3">
-                    <div class="d-none d-lg-flex align-items-center px-3 py-1 rounded-pill"
+                    <div class="d-none d-lg-flex align-items-center px-3 py-1 rounded-pill gap-3"
                         style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);">
-                        <span class="status-indicator status-active"></span>
-                        <span class="small font-mono text-muted">MAINNET</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="status-indicator status-active"></span>
+                            <span class="small font-mono text-muted">MAINNET</span>
+                        </div>
+                        <div class="vr h-50 my-auto text-muted opacity-25"></div>
+                        <div class="d-flex align-items-center gap-2" title="SOL Balance">
+                            <i class="fa-brands fa-solana text-primary small"></i>
+                            <span class="small font-mono text-light" id="topBarSolBalance">0.000 SOL</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2" title="USDC Balance">
+                            <i class="fa-solid fa-dollar-sign text-success small"></i>
+                            <span class="small font-mono text-light" id="topBarUsdcBalance">0.00 USDC</span>
+                        </div>
                     </div>
 
                     <div class="dropdown">
@@ -247,6 +258,34 @@
             }
         }
 
+        // Global function to update top bar balances
+        async function updateTopBarBalances() {
+            const solEl = document.getElementById('topBarSolBalance');
+            const usdcEl = document.getElementById('topBarUsdcBalance');
+
+            if (!solEl || !usdcEl) return;
+
+            try {
+                const response = await fetch('/api/wallet-balance');
+                const data = await response.json();
+
+                if (data.success) {
+                    let solBalance = 0;
+                    let usdcBalance = 0;
+
+                    data.balances.forEach(b => {
+                        if (b.token === 'SOL') solBalance = b.balance;
+                        if (b.token === 'USDC') usdcBalance = b.balance;
+                    });
+
+                    solEl.textContent = solBalance.toFixed(3) + ' SOL';
+                    usdcEl.textContent = usdcBalance.toFixed(2) + ' USDC';
+                }
+            } catch (error) {
+                console.error('Failed to update top bar balances', error);
+            }
+        }
+
         // Copy wallet address to clipboard
         function copyWalletAddress() {
             const walletAddress = document.getElementById('modalWalletAddress').value || document.getElementById('walletAddress').textContent.trim();
@@ -299,6 +338,12 @@
         // Load saved settings
         document.addEventListener('DOMContentLoaded', function () {
             // Hide preloader after page loads
+            // Start top bar balance updates if logged in
+            if (document.getElementById('topBarSolBalance')) {
+                updateTopBarBalances();
+                setInterval(updateTopBarBalances, 30000); // Update every 30 seconds
+            }
+
             setTimeout(function () {
                 const preloader = document.getElementById('preloader');
                 preloader.style.opacity = '0';

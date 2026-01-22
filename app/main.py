@@ -53,6 +53,7 @@ except ImportError:
 from models.user import User
 from models.wallet import Wallet
 from models.trading_bot import TradingBot
+from models.trade import Trade
 from database import init_db
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
@@ -701,6 +702,54 @@ def reject_trade():
         return jsonify({"success": True, "message": "Trade rejected"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/trade-history')
+@require_login
+def trade_history_page():
+    """Render the trade history page"""
+    return render_template('dashboard/history.html')
+
+@app.route('/api/trades/history', methods=['POST'])
+@require_login
+def get_trade_history():
+    """Get trade history for a specific date"""
+    user_id = session['user_id']
+    data = request.get_json()
+    date_str = data.get('date') # YYYY-MM-DD
+    
+    if not date_str:
+        return jsonify({"success": False, "message": "Date is required"}), 400
+        
+    try:
+        trades = Trade.find_by_user_and_date(user_id, date_str)
+        
+        # Calculate totals
+        total_pnl = 0
+        trade_list = []
+        
+        for trade in trades:
+            if trade.pnl is not None:
+                total_pnl += trade.pnl
+                
+            trade_list.append({
+                "timestamp": trade.timestamp,
+                "action": trade.action,
+                "token_symbol": trade.token_symbol,
+                "price": trade.price,
+                "amount": trade.amount,
+                "pnl": trade.pnl,
+                "status": trade.status
+            })
+            
+        return jsonify({
+            "success": True,
+            "trades": trade_list,
+            "total_pnl": total_pnl,
+            "count": len(trade_list)
+        })
+    except Exception as e:
+        print(f"Error fetching trade history: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
 
 def trading_algorithm(user_id, base_price, up_percentage, down_percentage, selected_token, trade_amount, parts, network="mainnet", trading_mode="automatic"):
     """Main trading algorithm with correct laddering logic - each transaction updates the base price"""

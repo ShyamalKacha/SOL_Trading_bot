@@ -545,9 +545,9 @@ a:hover {
     background: white;
     padding: 1rem;
     border-radius: var(--radius-md);
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+    /* box-shadow: 0 0 20px rgba(99, 102, 241, 0.2); */
     /* Primary glow */
-    border: 2px solid var(--primary);
+    /* border: 2px solid var(--primary); */
     margin: 0 auto;
     width: fit-content;
     display: none;
