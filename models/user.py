@@ -3,103 +3,89 @@ User model for the multi-user Solana trading bot
 """
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
-import sqlite3
 import os
 from cryptography.fernet import Fernet
 import json
-
+from database import get_db
+from bson.objectid import ObjectId
 
 class User:
-    def __init__(self, id=None, email=None, password_hash=None, created_at=None, is_active=True):
-        self.id = id
+    def __init__(self, id=None, email=None, password_hash=None, created_at=None, is_active=True, _id=None):
+        self._id = _id if _id else (ObjectId(id) if id else None)
         self.email = email
         self.password_hash = password_hash
         self.created_at = created_at or datetime.utcnow().isoformat()
         self.is_active = is_active
 
+    @property
+    def id(self):
+        return str(self._id) if self._id else None
+        
+    @id.setter
+    def id(self, value):
+        if value:
+            self._id = ObjectId(value)
+        else:
+            self._id = None
+
     @staticmethod
     def create_table():
         """Create the users table if it doesn't exist"""
-        conn = sqlite3.connect('trading_bot.db')
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                is_active BOOLEAN DEFAULT 1,
-                otp_secret TEXT,
-                otp_expiry TEXT
-            )
-        ''')
-        
-        conn.commit()
-        conn.close()
+        # MongoDB creates collections implicitly. Indexes are handled in database.py
+        pass
 
     def save(self):
         """Save user to database"""
-        conn = sqlite3.connect('trading_bot.db')
-        cursor = conn.cursor()
+        db = get_db()
         
-        if self.id:
-            cursor.execute('''
-                UPDATE users 
-                SET email=?, password_hash=?, is_active=?
-                WHERE id=?
-            ''', (self.email, self.password_hash, self.is_active, self.id))
+        user_data = {
+            "email": self.email,
+            "password_hash": self.password_hash,
+            "created_at": self.created_at,
+            "is_active": self.is_active
+        }
+
+        if self._id:
+            db.users.update_one({"_id": self._id}, {"$set": user_data})
         else:
-            cursor.execute('''
-                INSERT INTO users (email, password_hash, created_at, is_active)
-                VALUES (?, ?, ?, ?)
-            ''', (self.email, self.password_hash, self.created_at, self.is_active))
-            self.id = cursor.lastrowid
+            result = db.users.insert_one(user_data)
+            self._id = result.inserted_id
         
-        conn.commit()
-        conn.close()
         return self
 
     @staticmethod
     def find_by_email(email):
         """Find user by email"""
-        conn = sqlite3.connect('trading_bot.db')
-        cursor = conn.cursor()
+        db = get_db()
+        data = db.users.find_one({"email": email})
         
-        cursor.execute('SELECT * FROM users WHERE email=?', (email,))
-        row = cursor.fetchone()
-        
-        conn.close()
-        
-        if row:
+        if data:
             return User(
-                id=row[0],
-                email=row[1],
-                password_hash=row[2],
-                created_at=row[3],
-                is_active=bool(row[4])
+                _id=data['_id'],
+                email=data['email'],
+                password_hash=data['password_hash'],
+                created_at=data['created_at'],
+                is_active=data.get('is_active', True)
             )
         return None
 
     @staticmethod
     def find_by_id(user_id):
         """Find user by ID"""
-        conn = sqlite3.connect('trading_bot.db')
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT * FROM users WHERE id=?', (user_id,))
-        row = cursor.fetchone()
-        
-        conn.close()
-        
-        if row:
-            return User(
-                id=row[0],
-                email=row[1],
-                password_hash=row[2],
-                created_at=row[3],
-                is_active=bool(row[4])
-            )
+        db = get_db()
+        try:
+            data = db.users.find_one({"_id": ObjectId(user_id)})
+            
+            if data:
+                return User(
+                    _id=data['_id'],
+                    email=data['email'],
+                    password_hash=data['password_hash'],
+                    created_at=data['created_at'],
+                    is_active=data.get('is_active', True)
+                )
+        except Exception:
+            pass
         return None
 
     def set_password(self, password):
@@ -113,41 +99,30 @@ class User:
     @staticmethod
     def set_otp_secret(email, otp_secret, expiry):
         """Set OTP secret for email verification"""
-        conn = sqlite3.connect('trading_bot.db')
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            UPDATE users 
-            SET otp_secret=?, otp_expiry=?
-            WHERE email=?
-        ''', (otp_secret, expiry.isoformat(), email))
-        
-        conn.commit()
-        conn.close()
+        db = get_db()
+        db.users.update_one(
+            {"email": email},
+            {"$set": {"otp_secret": otp_secret, "otp_expiry": expiry.isoformat()}}
+        )
 
     @staticmethod
     def verify_otp(email, otp_secret):
         """Verify OTP secret for email verification"""
-        conn = sqlite3.connect('trading_bot.db')
-        cursor = conn.cursor()
+        db = get_db()
+        user = db.users.find_one({"email": email})
         
-        cursor.execute('''
-            SELECT otp_secret, otp_expiry FROM users 
-            WHERE email=?
-        ''', (email,))
-        row = cursor.fetchone()
-        
-        conn.close()
-        
-        if row and row[0] == otp_secret:
+        if user and user.get('otp_secret') == otp_secret:
             # Check if OTP is expired
             from datetime import datetime
-            expiry = datetime.fromisoformat(row[1])
-            if expiry > datetime.utcnow():
-                # Clear OTP after successful verification
-                cursor = sqlite3.connect('trading_bot.db').cursor()
-                cursor.execute('UPDATE users SET otp_secret=NULL, otp_expiry=NULL WHERE email=?', (email,))
-                cursor.connection.commit()
-                cursor.connection.close()
-                return True
+            
+            expiry_str = user.get('otp_expiry')
+            if expiry_str:
+                expiry = datetime.fromisoformat(expiry_str)
+                if expiry > datetime.utcnow():
+                    # Clear OTP after successful verification
+                    db.users.update_one(
+                        {"email": email},
+                        {"$unset": {"otp_secret": "", "otp_expiry": ""}}
+                    )
+                    return True
         return False

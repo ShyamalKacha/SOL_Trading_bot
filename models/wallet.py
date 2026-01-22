@@ -1,11 +1,13 @@
 """
 Wallet model for the multi-user Solana trading bot
 """
-import sqlite3
 from datetime import datetime
 from cryptography.fernet import Fernet
 import json
 import os
+from database import get_db
+from bson.objectid import ObjectId
+
 try:
     from solana.keypair import Keypair
     from solana.publickey import PublicKey
@@ -32,98 +34,88 @@ except ImportError:
 
 
 class Wallet:
-    def __init__(self, id=None, user_id=None, public_key=None, encrypted_private_key=None, created_at=None, balance=None):
-        self.id = id
+    def __init__(self, id=None, user_id=None, public_key=None, encrypted_private_key=None, created_at=None, balance=None, _id=None):
+        self._id = _id if _id else (ObjectId(id) if id else None)
         self.user_id = user_id
         self.public_key = public_key
         self.encrypted_private_key = encrypted_private_key
         self.created_at = created_at or datetime.utcnow().isoformat()
         self.balance = balance or {}
 
+    @property
+    def id(self):
+        return str(self._id) if self._id else None
+        
+    @id.setter
+    def id(self, value):
+        if value:
+            self._id = ObjectId(value)
+        else:
+            self._id = None
+
     @staticmethod
     def create_table():
         """Create the wallets table if it doesn't exist"""
-        conn = sqlite3.connect('trading_bot.db')
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS wallets (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                public_key TEXT UNIQUE NOT NULL,
-                encrypted_private_key TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                balance TEXT DEFAULT '{}',
-                FOREIGN KEY (user_id) REFERENCES users (id)
-            )
-        ''')
-        
-        conn.commit()
-        conn.close()
+        pass
 
     def save(self):
         """Save wallet to database"""
-        conn = sqlite3.connect('trading_bot.db')
-        cursor = conn.cursor()
+        db = get_db()
         
-        if self.id:
-            cursor.execute('''
-                UPDATE wallets 
-                SET user_id=?, public_key=?, encrypted_private_key=?, balance=?
-                WHERE id=?
-            ''', (self.user_id, self.public_key, self.encrypted_private_key, json.dumps(self.balance), self.id))
+        # Ensure user_id is ObjectId for reference
+        user_id_obj = ObjectId(self.user_id) if isinstance(self.user_id, str) else self.user_id
+
+        wallet_data = {
+            "user_id": user_id_obj,
+            "public_key": self.public_key,
+            "encrypted_private_key": self.encrypted_private_key,
+            "created_at": self.created_at,
+            "balance": self.balance # Store as native dict/list
+        }
+
+        if self._id:
+            db.wallets.update_one({"_id": self._id}, {"$set": wallet_data})
         else:
-            cursor.execute('''
-                INSERT INTO wallets (user_id, public_key, encrypted_private_key, created_at, balance)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (self.user_id, self.public_key, self.encrypted_private_key, self.created_at, json.dumps(self.balance)))
-            self.id = cursor.lastrowid
+            result = db.wallets.insert_one(wallet_data)
+            self._id = result.inserted_id
         
-        conn.commit()
-        conn.close()
         return self
 
     @staticmethod
     def find_by_user_id(user_id):
         """Find wallet by user ID"""
-        conn = sqlite3.connect('trading_bot.db')
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT * FROM wallets WHERE user_id=?', (user_id,))
-        row = cursor.fetchone()
-        
-        conn.close()
-        
-        if row:
-            return Wallet(
-                id=row[0],
-                user_id=row[1],
-                public_key=row[2],
-                encrypted_private_key=row[3],
-                created_at=row[4],
-                balance=json.loads(row[5])
-            )
+        db = get_db()
+        try:
+            user_id_obj = ObjectId(user_id) if isinstance(user_id, str) else user_id
+            data = db.wallets.find_one({"user_id": user_id_obj})
+            
+            if data:
+                return Wallet(
+                    _id=data['_id'],
+                    user_id=str(data['user_id']),
+                    public_key=data['public_key'],
+                    encrypted_private_key=data['encrypted_private_key'],
+                    created_at=data['created_at'],
+                    balance=data.get('balance', {})
+                )
+        except Exception as e:
+            pass
         return None
 
     @staticmethod
     def find_by_public_key(public_key):
         """Find wallet by public key"""
-        conn = sqlite3.connect('trading_bot.db')
-        cursor = conn.cursor()
+        db = get_db()
+        data = db.wallets.find_one({"public_key": public_key})
         
-        cursor.execute('SELECT * FROM wallets WHERE public_key=?', (public_key,))
-        row = cursor.fetchone()
-        
-        conn.close()
-        
-        if row:
+        if data:
             return Wallet(
-                id=row[0],
-                user_id=row[1],
-                public_key=row[2],
-                encrypted_private_key=row[3],
-                created_at=row[4],
-                balance=json.loads(row[5])
+                _id=data['_id'],
+                user_id=str(data['user_id']),
+                public_key=data['public_key'],
+                encrypted_private_key=data['encrypted_private_key'],
+                created_at=data['created_at'],
+                balance=data.get('balance', {})
             )
         return None
 
@@ -222,14 +214,12 @@ class Wallet:
         else:
             self.balance = new_balance
 
-        conn = sqlite3.connect('trading_bot.db')
-        cursor = conn.cursor()
+        db = get_db()
+        # Ensure ID is ObjectId
+        if not self._id:
+             return 
 
-        cursor.execute('''
-            UPDATE wallets
-            SET balance=?
-            WHERE id=?
-        ''', (json.dumps(self.balance), self.id))
-
-        conn.commit()
-        conn.close()
+        db.wallets.update_one(
+            {"_id": self._id},
+            {"$set": {"balance": self.balance}}
+        )

@@ -4,7 +4,7 @@ import json
 from dotenv import load_dotenv
 import os
 from base58 import b58decode
-import sqlite3
+# sqlite3 import removed
 from datetime import datetime, timedelta
 import threading
 import time
@@ -53,14 +53,13 @@ except ImportError:
 from models.user import User
 from models.wallet import Wallet
 from models.trading_bot import TradingBot
+from database import init_db
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
 app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-this-in-production')
 
 # Initialize database tables
-User.create_table()
-Wallet.create_table()
-TradingBot.create_table()
+init_db()
 
 # Constants
 # Using the Jupiter API endpoint for quotes (requires API key)
