@@ -410,25 +410,28 @@
             const data = await response.json();
             console.log('Trading started:', data);
 
-            // Update the automatic base price display
-            setTimeout(async () => {
-                const statusResponse = await fetch('/api/trading-status');
-                const statusData = await statusResponse.json();
-                if (statusData.current_price) {
-                    document.getElementById('autoBasePrice').textContent = statusData.current_price.toFixed(8);
-                }
-            }, 1000);
+            if (response.ok) {
+                updateStatus(true);
+                showToast('Trading Sequence Initiated', 'success');
 
-            updateStatus(true);
-            showToast('Trading Sequence Initiated', 'success');
+                // Update the automatic base price display
+                setTimeout(async () => {
+                    const statusResponse = await fetch('/api/trading-status');
+                    const statusData = await statusResponse.json();
+                    if (statusData.current_price) {
+                        document.getElementById('autoBasePrice').textContent = statusData.current_price.toFixed(8);
+                    }
+                }, 1000);
 
-            // Start polling
-            if (tradingInterval) clearInterval(tradingInterval);
-            tradingInterval = setInterval(updateTradingStatus, 2000);
+                // Start polling
+                if (tradingInterval) clearInterval(tradingInterval);
+                tradingInterval = setInterval(updateTradingStatus, 2000);
+            } else {
+                throw new Error(data.message || 'Failed to start trading');
+            }
         } catch (error) {
             console.error('Error starting trading:', error);
             showToast('Failed to start trading sequence', 'danger');
-        } finally {
             startTradingBtn.disabled = false;
             startTradingBtn.innerHTML = '<i class="fa-solid fa-play me-2"></i>INITIATE SEQUENCE';
         }
@@ -527,10 +530,19 @@
             statusIndicator.className = 'status-indicator status-active';
             statusText.textContent = 'ACTIVE';
             statusText.className = 'font-mono fw-bold text-success';
+            
+            // Disable Start Button & Enable Stop Button
+            startTradingBtn.disabled = true;
+            startTradingBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>SEQUENCE RUNNING';
+            stopTradingBtn.disabled = false;
         } else {
             statusIndicator.className = 'status-indicator status-inactive';
             statusText.textContent = 'STANDBY';
             statusText.className = 'font-mono fw-bold text-muted';
+            
+            // Enable Start Button
+            startTradingBtn.disabled = false;
+            startTradingBtn.innerHTML = '<i class="fa-solid fa-play me-2"></i>INITIATE SEQUENCE';
         }
     }
 
