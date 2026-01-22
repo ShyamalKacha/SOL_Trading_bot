@@ -1,23 +1,30 @@
 # Multi-User Solana Trading Bot
 
-A comprehensive multi-user Solana trading bot with wallet management and automated trading capabilities.
+A comprehensive multi-user Solana trading bot with wallet management, automated ladder trading, and trade history tracking.
 
 ## Features
 
-- **Multi-User Support**: Each user gets their own Solana wallet and trading instance
-- **Email OTP Verification**: Secure registration with email verification
-- **Wallet Management**: Add and withdraw funds from user wallets
-- **Automated Trading**: Advanced trading bot with configurable parameters
-- **Dark Theme UI**: Modern, responsive dark-themed interface
-- **Secure Storage**: Encrypted private key storage
+- **Multi-User Support**: Each user gets their own Solana wallet and trading instance.
+- **Email OTP Verification**: Secure registration with generic SMTP support (Gmail and others).
+- **Wallet Management**: Real-time balance tracking, deposit, and withdrawal capabilities.
+- **Automated Trading**: Advanced ladder trading algorithm with configurable parameters.
+- **Trade History**: Comprehensive log of all trades with PnL tracking and date filtering.
+- **Dark Theme UI**: Modern, responsive dark-themed interface with glassmorphism effects.
+- **Secure Storage**: Encrypted private key storage using Fernet (AES-128).
+- **Dynamic Pricing**: Automatically sets base trading price to current market value on start.
+- **Token Support**: Supports SOL, USDC, and various SPL tokens including BONK, RAY, JUP, USDT, mSOL, stSOL, PYTH, WIF, JTO, ORCA, ETH, WBTC.
+- **Withdrawal Functionality**: Secure withdrawal of SOL and SPL tokens to external addresses.
+- **User Approval Mode**: Option to require manual approval for each trade in user mode.
+- **Network Flexibility**: Support for mainnet, devnet, and testnet environments.
 
 ## Prerequisites
 
 - Python 3.8+
-- Solana account with some SOL for transaction fees
-- Jupiter API key
-- Gmail account with app password for email OTP
-- Helius API key (optional but recommended)
+- **MongoDB 6.0+** (Local or Atlas)
+- Solana account with SOL for transaction fees.
+- Jupiter API key for trading and quotes.
+- SMTP account (e.g., Gmail with App Password) for sending OTP emails.
+- Helius API key (optional but recommended for RPC performance).
 
 ## Installation
 
@@ -40,123 +47,168 @@ pip install -r requirements.txt
 ```
 
 4. Set up environment variables:
-```bash
-cp .env.example .env
-```
+Create a `.env` file in the root directory (see [Environment Variables](#environment-variables)).
 
-5. Edit the `.env` file with your API keys and configuration.
+5. Run the application:
+```bash
+# On Windows
+python app/main.py
+# Or use the batch script
+run_app.bat
+
+# On Linux/Mac
+python app/main.py
+```
 
 ## Environment Variables
 
-Create a `.env` file in the root directory with the following variables:
+Create a `.env` file with the following variables:
 
 ```env
 # Flask configuration
 SECRET_KEY=your-secret-key-change-this-in-production
 
+# MongoDB Configuration
+MONGO_URI=mongodb://localhost:27017/trading_bot
+
 # Jupiter API
 JUPITER_API_KEY=your-jupiter-api-key
 
-# Helius API (optional but recommended for better RPC performance)
+# Helius API (optional - for enhanced RPC performance)
 HELIUS_API_KEY=your-helius-api-key
 
-# Gmail SMTP for sending OTP emails
-GMAIL_EMAIL=your-gmail@gmail.com
-GMAIL_APP_PASSWORD=your-gmail-app-password
+# SMTP Configuration for OTP Emails
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+SENDER_EMAIL=your-email@gmail.com
 
 # Encryption key for storing private keys securely
-ENCRYPTION_KEY=your-encryption-key-generated-using-python-cryptography
+ENCRYPTION_KEY=your-encryption-key
 ```
 
-To generate an encryption key:
-```python
-from cryptography.fernet import Fernet
-key = Fernet.generate_key()
-print(key.decode())
-```
+> [!TIP]
+> To generate a secure `ENCRYPTION_KEY`:
+> ```python
+> from cryptography.fernet import Fernet
+> print(Fernet.generate_key().decode())
+> ```
 
 ## Usage
 
-1. Start the application:
+1. **Start MongoDB**: Ensure your MongoDB service is running.
+2. **Start the application**:
 ```bash
 python app/main.py
 ```
+3. **Access the UI**: Go to `http://localhost:5000` in your browser.
+4. **Register**: Sign up with your email and verify via the OTP sent.
+5. **Fund Wallet**: Deposit SOL/USDC to your generated wallet address.
+6. **Configure & Start**: Set your trading parameters and click "INITIATE SEQUENCE".
 
-2. Open your browser and go to `http://localhost:5000`
+## Database Setup
 
-3. Register a new account using your email address
+The application uses MongoDB for data storage with the following collections and indexes:
 
-4. Verify your email using the OTP sent to your inbox
+- **users**: Stores user information with unique email index
+- **wallets**: Stores wallet information with unique public key index and user_id reference
+- **trading_bots**: Stores trading bot configurations with user_id reference
+- **trades**: Stores trade history with user_id and timestamp indexing
 
-5. Start trading with your personal wallet
-
-## Architecture
-
-- **User Model**: Handles user authentication and registration
-- **Wallet Model**: Manages Solana wallets for each user
-- **Trading Bot Model**: Manages trading configurations per user
-- **Database**: SQLite for storing user data and configurations
-
-## Security
-
-- Passwords are hashed using bcrypt
-- Private keys are encrypted using Fernet (AES 128)
-- Session management with secure Flask sessions
-- Input validation and sanitization
+The application automatically initializes these collections and indexes when started.
 
 ## API Endpoints
 
 ### Authentication
-- `POST /api/register` - Register a new user
-- `POST /api/verify-otp` - Verify OTP for registration
-- `POST /api/login` - Login a user
-- `POST /api/logout` - Logout a user
+- `POST /api/register` - Register a new user.
+- `POST /api/verify-otp` - Verify OTP for registration.
+- `POST /api/login` - Login a user.
+- `POST /api/logout` - Logout a user.
 
-### Wallet Management
-- `GET /api/wallet-info` - Get user's wallet address
-- `GET /api/wallet-balance` - Get user's wallet balance
-- `POST /api/add-funds` - Add funds to user's wallet
-- `POST /api/withdraw-funds` - Withdraw funds from user's wallet
+### Wallet & Trading
+- `GET /api/wallet-info` - Get user's wallet address.
+- `GET /api/wallet-balance` - Get real-time wallet balances.
+- `GET /api/wallet-balance/<wallet_address>` - Get wallet balance for specific address.
+- `GET /api/wallet-balance/<wallet_address>/<network>` - Get wallet balance for specific address on specific network.
+- `POST /api/start-trading` - Start automated ladder trading.
+- `POST /api/stop-trading` - Stop trading bot.
+- `GET /api/trading-status` - Get current bot status and progress.
+- `POST /api/trades/history` - Get trade history for a specific date.
+- `GET /api/pending-approvals` - Get pending trade approvals for user mode.
+- `POST /api/approve-trade` - Approve a pending trade.
+- `POST /api/reject-trade` - Reject a pending trade.
+- `GET /api/deposit-address` - Get user's deposit address.
+- `POST /api/withdraw-funds` - Withdraw funds to external address.
 
-### Trading
-- `POST /api/start-trading` - Start trading bot
-- `POST /api/stop-trading` - Stop trading bot
-- `GET /api/trading-status` - Get trading status
-- `GET /api/pending-approvals` - Get pending trade approvals
-- `POST /api/approve-trade` - Approve a trade
-- `POST /api/reject-trade` - Reject a trade
-- `POST /api/get-price` - Get current token price
+### Pricing
+- `POST /api/get-price` - Get current price for a token pair using Jupiter API.
+
+## Trading Algorithm
+
+The trading bot implements a sophisticated ladder trading algorithm with the following features:
+
+- **Dynamic Base Price**: The base price is automatically set to the current market price when trading starts and updates after each successful transaction.
+- **Buy/Sell Logic**:
+  - Buy when current price ≤ base price × (1 - down_percentage/100)
+  - Sell when current price ≥ base price × (1 + up_percentage/100)
+- **Part-Based Trading**: The total trade amount is divided into configurable parts for ladder-style trading.
+- **Laddering Mechanism**: Each successful buy creates a sell opportunity, and each successful sell creates a buy opportunity.
+- **Profit Calculation**: Profit is calculated based on the difference between sell and buy prices, with transaction fees deducted.
+- **Position Tracking**: Tracks the number of tokens held and average purchase price.
 
 ## Trading Parameters
 
-- **Network**: Mainnet, Devnet, or Testnet
-- **Trading Mode**: Automatic or User Approval
-- **Up Percentage**: Percentage increase to trigger sell
-- **Down Percentage**: Percentage decrease to trigger buy
-- **Trade Amount**: Total amount to trade
-- **Parts**: Number of parts to divide the trade into
+- **Network**: Mainnet, Devnet, or Testnet.
+- **Trading Mode**:
+  - Automatic (Autonomous): Trades execute without user intervention.
+  - User Approval (Manual): Requires manual approval for each trade.
+- **Up Percentage**: Threshold percentage above base price for selling.
+- **Down Percentage**: Threshold percentage below base price for buying.
+- **Selected Token**: Token to trade (SOL, USDC, or other supported SPL tokens).
+- **Trade Amount**: Total dollar value allocated for the sequence.
+- **Parts**: Number of ladder rungs to divide the total amount.
 
-## Wallet Management
+## Supported Tokens
 
-Users can:
-- View their wallet address and token balances
-- Add funds by transferring from external wallets
-- Withdraw funds to external addresses
-- Monitor transaction history
+The application supports trading of the following tokens:
+
+- **Native Tokens**: SOL
+- **Wrapped Tokens**: wSOL, Wrapped Ether (Wormhole), Wrapped BTC (Wormhole)
+- **Stablecoins**: USDC, USDT
+- **Popular SPL Tokens**: BONK, RAY, JUP, mSOL, stSOL, PYTH, dogwifhat (WIF), JITO (JTO), ORCA
+- **Custom Tokens**: Any SPL token with a valid mint address
+
+## Security
+
+- **Bcrypt**: For hashing user passwords.
+- **Fernet (AES)**: For encrypting Solana private keys at rest.
+- **Environment Isolation**: Sensitive keys managed via `.env`.
+- **Session Security**: Secure Flask session management.
+- **Transaction Fees**: Estimated at $0.02 per transaction for profit calculations.
+- **Balance Validation**: Checks wallet balances before executing trades.
+
+## Withdrawal Functionality
+
+The application provides secure withdrawal capabilities:
+
+- **SOL Withdrawals**: Transfer SOL to any external Solana address.
+- **SPL Token Withdrawals**: Transfer SPL tokens to any external Solana address.
+- **Automatic ATA Creation**: Creates associated token accounts when needed.
+- **Fee Handling**: Ensures sufficient SOL balance for transaction fees.
 
 ## Development
 
-To run in development mode with auto-reload:
 ```bash
-export FLASK_ENV=development
+# Run with auto-reload
 python app/main.py
 ```
 
 ## Deployment
 
-For production deployment, consider:
-- Using a production WSGI server like Gunicorn
-- Setting up a reverse proxy with Nginx
-- Using a production database like PostgreSQL
-- Implementing proper logging
-- Setting up SSL certificates
+- Use **Gunicorn** or similar WSGI server for production.
+- Set up **Nginx** as a reverse proxy.
+- Use **SSL/TLS** certificates for all traffic.
+- Ensure MongoDB is properly secured with authentication.
+- Configure environment variables for production settings.
+- Monitor transaction fees and adjust as needed.
