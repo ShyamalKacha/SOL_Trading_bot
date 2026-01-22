@@ -108,8 +108,8 @@
                             </div>
                         </div>
 
-                        <div id="qrcodeContainer" class="qr-code-container mb-3"
-                            style="display: none !important;"></div>
+                        <div id="qrcodeContainer" class="qr-code-container mb-3" style="display: none !important;">
+                        </div>
                         <div id="qrcodeHelp" class="text-center text-muted small mb-3" style="display: none;">
                             Scan with your Solana Wallet
                         </div>
@@ -138,8 +138,12 @@
                             </div>
                             <div class="col-4">
                                 <label class="form-label">Amount</label>
-                                <input type="number" class="form-control font-mono" id="withdrawAmount"
-                                    placeholder="0.00">
+                                <div class="input-group">
+                                    <input type="number" class="form-control font-mono" id="withdrawAmount"
+                                        placeholder="0.00">
+                                    <button class="btn btn-outline-secondary font-mono" type="button"
+                                        onclick="setMaxWithdrawAmount()">MAX</button>
+                                </div>
                             </div>
                         </div>
 
@@ -599,6 +603,7 @@
                 option.value = balance.mint;
                 option.text = `${balance.token} (${balance.balance.toFixed(4)})`;
                 option.dataset.decimals = balance.decimals;
+                option.dataset.balance = balance.balance;
                 withdrawSelect.appendChild(option);
             }
         });
@@ -751,6 +756,36 @@
             console.error("QR Generation Error:", e);
             showToast('Failed to generate QR Code', 'danger');
         }
+    }
+
+    // Function to set max withdraw amount
+    function setMaxWithdrawAmount() {
+        const tokenSelect = document.getElementById('withdrawTokenSelect');
+        const amountInput = document.getElementById('withdrawAmount');
+        const selectedOption = tokenSelect.options[tokenSelect.selectedIndex];
+
+        if (!selectedOption || !selectedOption.value) {
+            showToast('Please select an asset first', 'warning');
+            return;
+        }
+
+        const balance = parseFloat(selectedOption.dataset.balance || 0);
+        const mint = selectedOption.value;
+        const SOL_MINT = "So11111111111111111111111111111111111111112";
+        const TRANSACTION_FEE = 0.000005; // Standard Solana fee
+
+        let maxAmount = balance;
+
+        // If transferring SOL, we need to leave enough for gas
+        if (mint === SOL_MINT) {
+            maxAmount = Math.max(0, balance - TRANSACTION_FEE);
+            if (maxAmount === 0) {
+                showToast('Insufficient SOL for transaction fee', 'warning');
+            }
+        }
+
+        // Set amount with 6 decimal places to avoid floating point issues
+        amountInput.value = maxAmount.toFixed(6);
     }
 
     // Function to withdraw funds from wallet
