@@ -1,8 +1,13 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask_cors import CORS
 import requests
 import json
 from dotenv import load_dotenv
 import os
+import sys
+
+# Add the parent directory to sys.path to allow imports from root
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from base58 import b58decode
 # sqlite3 import removed
 from datetime import datetime, timedelta
@@ -57,6 +62,7 @@ from models.trade import Trade
 from database import init_db
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
+CORS(app, supports_credentials=True) # Enable CORS for all routes, allowing credentials (cookies/session)
 app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-this-in-production')
 
 # Initialize database tables
@@ -212,30 +218,35 @@ def require_login(f):
     decorated_function.__name__ = f.__name__
     return decorated_function
 
-# Routes for authentication
+# Routes for authentication - CHANGED FOR REACT
+@app.route('/api/check-auth')
+def check_auth():
+    """Check if user is authenticated and return user info"""
+    if 'user_id' in session:
+        return jsonify({"authenticated": True, "user_id": session['user_id']})
+    return jsonify({"authenticated": False}), 401
+
 @app.route('/')
 def index():
-    if 'user_id' in session:
-        return redirect(url_for('dashboard'))
-    return render_template('auth/login.html')
+    return jsonify({"message": "Backend is running. Please access via frontend."})
 
 @app.route('/login')
 def login():
-    if 'user_id' in session:
-        return redirect(url_for('dashboard'))
-    return render_template('auth/login.html')
+    return jsonify({"message": "Please use POST /api/login"})
 
 @app.route('/register')
 def register():
-    if 'user_id' in session:
-        return redirect(url_for('dashboard'))
-    return render_template('auth/register.html')
+    return jsonify({"message": "Please use POST /api/register"})
 
 @app.route('/dashboard')
 @require_login
 def dashboard():
     helius_api_key = os.getenv('HELIUS_API_KEY', '')
-    return render_template('dashboard/index.html', helius_api_key=helius_api_key)
+    return jsonify({
+        "message": "Welcome to dashboard API", 
+        "helius_api_key": helius_api_key,
+        "user_id": session['user_id']
+    })
 
 @app.route('/api/register', methods=['POST'])
 def api_register():
@@ -706,8 +717,8 @@ def reject_trade():
 @app.route('/trade-history')
 @require_login
 def trade_history_page():
-    """Render the trade history page"""
-    return render_template('dashboard/history.html')
+    """Render the trade history page - DEPRECATED for API"""
+    return jsonify({"message": "Use /api/trades/history for history data"})
 
 @app.route('/api/trades/history', methods=['POST'])
 @require_login

@@ -1,0 +1,566 @@
+/* 
+   Nebula Trader - Premium UI Theme 
+   Style.css
+*/
+
+:root {
+    /* Core Palette - Dark Future */
+    --bg-deep: #050511;
+    --bg-panel: #0f111a;
+    --bg-surface: #131620;
+
+    /* Brand Colors - Neon Accents */
+    --primary: #6366f1;
+    /* Indigo */
+    --primary-glow: rgba(99, 102, 241, 0.4);
+    --accent: #0ea5e9;
+    /* Sky Blue */
+    --accent-glow: rgba(14, 165, 233, 0.4);
+
+    /* Status Colors */
+    --success: #10b981;
+    /* Emerald */
+    --success-glow: rgba(16, 185, 129, 0.3);
+    --warning: #f59e0b;
+    /* Amber */
+    --warning-glow: rgba(245, 158, 11, 0.3);
+    --danger: #ef4444;
+    /* Red */
+    --danger-glow: rgba(239, 68, 68, 0.3);
+
+    /* Text Colors */
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --text-faint: #475569;
+
+    /* Spacing & Layout */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-pill: 9999px;
+
+    /* Glassmorphism */
+    --glass-bg: rgba(19, 22, 32, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-shine: rgba(255, 255, 255, 0.03);
+    --backdrop-blur: 16px;
+}
+
+/* --- Reset & Base --- */
+
+body {
+    background-color: var(--bg-deep);
+    color: var(--text-main);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    overflow-x: hidden;
+    min-height: 100vh;
+    background-image:
+        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(14, 165, 233, 0.08) 0%, transparent 40%);
+    background-attachment: fixed;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-main);
+    margin-bottom: 1rem;
+}
+
+a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+a:hover {
+    color: var(--primary);
+}
+
+/* --- Utilities --- */
+
+.font-mono {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.tracking-tight {
+    letter-spacing: -0.02em;
+}
+
+.tracking-wide {
+    letter-spacing: 0.05em;
+}
+
+.text-gradient {
+    background: linear-gradient(135deg, var(--text-main) 0%, var(--text-muted) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.text-primary-gradient {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* --- Glass Components --- */
+
+/* Replaces default Card style */
+.glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.glass-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--glass-shine), transparent);
+    opacity: 0.6;
+}
+
+.glass-panel:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+.glass-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--glass-border);
+    background: rgba(0, 0, 0, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.glass-header h5 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.glass-body {
+    padding: 1.5rem;
+}
+
+/* --- Form Elements --- */
+
+.form-control,
+.form-select {
+    background-color: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid var(--glass-border) !important;
+    color: var(--text-main) !important;
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    transition: all 0.2s ease;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 4px var(--primary-glow) !important;
+    color: var(--text-main) !important;
+}
+
+.form-control::placeholder {
+    color: var(--text-faint);
+    opacity: 0.7;
+}
+
+.form-label {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.form-text {
+    color: var(--text-faint) !important;
+    font-size: 0.8rem;
+}
+
+.input-group-text {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    color: var(--text-muted);
+}
+
+/* --- Buttons --- */
+
+.btn {
+    border-radius: var(--radius-md);
+    padding: 0.6rem 1.2rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    border: none;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), #4f46e5);
+    box-shadow: 0 4px 12px var(--primary-glow);
+    color: white;
+    cursor: pointer;
+}
+
+.btn-primary:hover {
+    box-shadow: 0 6px 20px var(--primary-glow);
+    transform: translateY(-1px);
+    background: linear-gradient(135deg, #4f46e5, var(--primary));
+}
+
+.btn-success {
+    background: linear-gradient(135deg, var(--success), #059669);
+    box-shadow: 0 4px 12px var(--success-glow);
+    color: white;
+    cursor: pointer;
+}
+
+.btn-success:hover {
+    box-shadow: 0 6px 20px var(--success-glow);
+    transform: translateY(-1px);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, var(--danger), #dc2626);
+    box-shadow: 0 4px 12px var(--danger-glow);
+    color: white;
+    cursor: pointer;
+}
+
+.btn-danger:hover {
+    box-shadow: 0 6px 20px var(--danger-glow);
+    transform: translateY(-1px);
+}
+
+.btn-outline-secondary {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.btn-outline-secondary:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+    border-color: var(--text-muted);
+}
+
+/* --- Tables --- */
+
+.table-responsive {
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.table {
+    margin-bottom: 0;
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--text-main);
+}
+
+.table thead th {
+    background-color: rgba(0, 0, 0, 0.3);
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--glass-border);
+    padding: 1rem;
+}
+
+.table tbody td {
+    border-bottom: 1px solid var(--glass-border);
+    vertical-align: middle;
+    padding: 1rem;
+    font-size: 0.9rem;
+    color: var(--text-main);
+}
+
+.table-striped>tbody>tr:nth-of-type(odd)>* {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.table tbody tr:hover>* {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* --- Navbar --- */
+
+.navbar-custom {
+    background: rgba(5, 5, 17, 0.85);
+    /* Matches --bg-deep with opacity */
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--glass-border);
+    padding: 0.75rem 0;
+    transition: all 0.3s ease;
+}
+
+.navbar-brand {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--text-main) !important;
+}
+
+.nav-link {
+    color: var(--text-muted) !important;
+    font-weight: 500;
+    font-size: 0.95rem;
+    padding: 0.5rem 1rem !important;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    color: var(--text-main) !important;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-link i {
+    color: var(--primary);
+    margin-right: 0.4rem;
+}
+
+/* --- Status Indicators --- */
+
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+    position: relative;
+}
+
+.status-active {
+    background-color: var(--success);
+    box-shadow: 0 0 8px var(--success);
+}
+
+.status-active::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid var(--success);
+    opacity: 0.5;
+    animation: pulse 2s infinite;
+}
+
+.status-inactive {
+    background-color: var(--text-muted);
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+
+    100% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
+
+/* --- Token & Wallet Styles --- */
+
+.wallet-address {
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    color: var(--text-main);
+    border: 1px solid var(--glass-border);
+    border-right: none;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.copy-btn {
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.token-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+/* --- Alerts & Toasts --- */
+
+.alert {
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    color: var(--text-main);
+    padding: 1rem 1.25rem;
+}
+
+.alert-success {
+    border-left: 4px solid var(--success);
+}
+
+.alert-danger {
+    border-left: 4px solid var(--danger);
+}
+
+.alert-info {
+    border-left: 4px solid var(--accent);
+}
+
+.alert-warning {
+    border-left: 4px solid var(--warning);
+}
+
+.toast {
+    background: rgba(19, 22, 32, 0.95);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    color: var(--text-main);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* --- Modals --- */
+
+.modal-content {
+    background: var(--bg-surface);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--glass-border);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.modal-footer {
+    border-top: 1px solid var(--glass-border);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.btn-close {
+    filter: invert(1);
+    opacity: 0.7;
+}
+
+/* --- Scrollbar --- */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-deep);
+}
+
+::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
+
+/* --- Preloader --- */
+.preloader {
+    background: var(--bg-deep);
+    z-index: 9999;
+}
+
+/* --- Layout Adjustments --- */
+.main-content {
+    padding-top: 80px;
+    /* Account for fixed navbar */
+}
+
+.cyber-border {
+    position: relative;
+    border: 1px solid transparent;
+    background-origin: border-box;
+    background-clip: content-box, border-box;
+}
+
+/* Helper for price displays */
+.price-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.price-up {
+    color: var(--success);
+    text-shadow: 0 0 10px var(--success-glow);
+}
+
+.price-down {
+    text-shadow: 0 0 10px var(--danger-glow);
+}
+
+/* --- QR Code Container --- */
+.qr-code-container {
+    background: white;
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    /* box-shadow: 0 0 20px rgba(99, 102, 241, 0.2); */
+    /* Primary glow */
+    /* border: 2px solid var(--primary); */
+    margin: 0 auto;
+    width: fit-content;
+    display: none;
+    /* Hidden by default, toggled via JS */
+    transition: all 0.3s ease;
+}
+
+.qr-code-container:hover {
+    box-shadow: 0 0 30px rgba(99, 102, 241, 0.4);
+    transform: scale(1.02);
+}
