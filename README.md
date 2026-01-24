@@ -9,7 +9,7 @@ A comprehensive multi-user Solana trading bot with a **modern React frontend**, 
 
 ## 🚀 Features
 
-- **Modern UI**: specialized "Nebula Trader" dark theme built with React & Bootstrap.
+- **Modern UI**: specialized dark theme built with React & Bootstrap.
 - **Multi-User Support**: Individual wallet and trading instances for every user.
 - **Real-Time Dashboard**: Live price monitoring, wallet balances, and active trade status.
 - **Automated Trading**: Advanced ladder trading algorithm with configurable strategies (Take Profit / Stop Loss).
@@ -113,17 +113,3 @@ ENCRYPTION_KEY=your_fernet_key
     *   **Live Monitor**: Watch real-time P&L changes and active status.
 3.  **Start Trading**: Click "INITIATE SEQUENCE" to begin the automated ladder strategy.
 4.  **History**: View all past trades in the "Trade History" section.
-
-## 🛡 Security Notes
-
-*   Private keys are **never** exposed to the frontend. They are encrypted at rest in the database.
-*   The frontend communicates with the backend via secure API calls.
-*   Always use a dedicated burner wallet for bot trading; do not store life savings in hot wallets.
-
-## 🤝 Contributing
-
-1.  Fork the repository
-2.  Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4.  Push to the branch (`git push origin feature/AmazingFeature`)
-5.  Open a Pull Request
