@@ -30,8 +30,8 @@
 
     /* Text Colors */
     --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-    --text-faint: #475569;
+    --text-muted: #cbd5e1;
+    --text-faint: #94a3b8;
 
     /* Spacing & Layout */
     --radius-sm: 8px;
@@ -109,6 +109,10 @@ a:hover {
     background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
 }
 
 /* --- Glass Components --- */

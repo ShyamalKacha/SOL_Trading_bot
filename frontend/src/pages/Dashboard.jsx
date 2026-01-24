@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
@@ -558,6 +559,9 @@ const Dashboard = () => {
                         <i className="fa-solid fa-list-ul text-white"></i>
                         <h5 className="font-mono tracking-tight mb-0">ORDER LOG</h5>
                     </div>
+                    <Link to="/trade-history" className="btn btn-sm btn-outline-info font-mono">
+                        <i className="fa-solid fa-clock-rotate-left me-1"></i> View Past Trade
+                    </Link>
                 </div>
                 <div className="glass-body p-0">
                     <div className="table-responsive">
@@ -579,13 +583,15 @@ const Dashboard = () => {
                                     status.transaction_history.map((tx, idx) => (
                                         <tr key={idx}>
                                             <td>{tx.timestamp}</td>
-                                            <td>{tx.action}</td>
-                                            <td>{tx.part}</td>
-                                            <td>{tx.asset}</td>
-                                            <td>{tx.price}</td>
-                                            <td>{tx.base_price}</td>
-                                            <td>{tx.pnl}</td>
-                                            <td>{tx.status}</td>
+                                            <td><span className={`badge ${tx.action === 'buy' ? 'bg-success' : 'bg-danger'}`}>{tx.action.toUpperCase()}</span></td>
+                                            <td>{tx.part_number}/{tx.total_parts}</td>
+                                            <td>{tx.token_symbol}</td>
+                                            <td>${typeof tx.price === 'number' ? tx.price.toFixed(4) : tx.price}</td>
+                                            <td>${tx.base_price_at_execution ? tx.base_price_at_execution.toFixed(4) : '0.00'}</td>
+                                            <td className={tx.pnl >= 0 ? 'text-success' : 'text-danger'}>
+                                                {tx.pnl ? (tx.pnl >= 0 ? '+' : '') + '$' + Math.abs(tx.pnl).toFixed(4) : '-'}
+                                            </td>
+                                            <td><span className="badge bg-secondary">{tx.status ? tx.status.toUpperCase() : 'COMPLETED'}</span></td>
                                         </tr>
                                     ))
                                 ) : (
