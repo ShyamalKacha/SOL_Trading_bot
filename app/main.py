@@ -73,6 +73,10 @@ init_db()
 JUPITER_QUOTE_API = "https://api.jup.ag/swap/v1/quote"
 JUPITER_SWAP_API = "https://api.jup.ag/swap/v1/swap"
 
+# Minimum balance required for mainnet trading (initial check)
+# Now used as a buffer for gas fees
+MIN_MAINNET_BALANCE = 0.00005
+
 # Mock data for demonstration
 # SOL mint address
 SOL_MINT = "So11111111111111111111111111111111111111112"
@@ -575,7 +579,42 @@ def start_trading():
     
     data = request.get_json()
 
-    # Validate required parameters (removed basePrice since it's now automatically set)
+    # Extract trade amount and parts early to calculate part amount
+    try:
+        trade_amount = float(data.get('tradeAmount', 0))
+        parts = int(data.get('parts', 1)) 
+        if parts <= 0: parts = 1
+        part_amount = trade_amount / parts
+    except (ValueError, TypeError):
+        part_amount = 0
+        
+    # Extract network early for validation
+    network = data.get('network', 'mainnet').lower()
+
+    # Check wallet balance if on mainnet to prevent trading with insufficient funds
+    if network == 'mainnet':
+        wallet = Wallet.find_by_user_id(user_id)
+        if not wallet:
+            return jsonify({"error": "Wallet not found. Please setup your wallet first."}), 400
+            
+        # Get current balance
+        balance_response = get_wallet_balance(wallet.public_key, network)
+        
+        if not balance_response.get('success'):
+            return jsonify({"error": f"Failed to check wallet balance: {balance_response.get('message')}"}), 400
+            
+        # Find SOL balance
+        sol_balance = 0
+        for token in balance_response.get('balances', []):
+            if token['token'] == 'SOL':
+                sol_balance = token['balance']
+                break
+                
+        if sol_balance < (part_amount + MIN_MAINNET_BALANCE):
+            return jsonify({
+                "error": f"Insufficient SOL balance. Required per part: {part_amount:.4f} SOL + {MIN_MAINNET_BALANCE} SOL (fees) = {(part_amount + MIN_MAINNET_BALANCE):.4f} SOL. Available: {sol_balance:.4f} SOL."
+            }), 400
+
     required_fields = ['upPercentage', 'downPercentage', 'selectedToken', 'tradeAmount', 'parts']
     for field in required_fields:
         if field not in data:
@@ -745,11 +784,13 @@ def get_trade_history():
     data = request.get_json()
     date_str = data.get('date') # YYYY-MM-DD
     
+    network = data.get('network')
+    
     if not date_str:
         return jsonify({"success": False, "message": "Date is required"}), 400
         
     try:
-        trades = Trade.find_by_user_and_date(user_id, date_str)
+        trades = Trade.find_by_user_and_date(user_id, date_str, network)
         
         # Calculate totals
         total_pnl = 0
@@ -1021,6 +1062,25 @@ def trading_algorithm(user_id, base_price, up_percentage, down_percentage, selec
 
                     trading_state['transaction_history'].append(tx_record)
 
+                    # Save to database
+                    try:
+                        trade = Trade(
+                            user_id=user_id,
+                            timestamp=timestamp,
+                            action='buy',
+                            token_symbol=get_token_symbol(selected_token),
+                            token_mint=selected_token,
+                            price=current_price,
+                            amount=part_size,
+                            pnl=None,
+                            network=network,
+                            status='completed'
+                        )
+                        trade.save()
+                        print(f"[TRADING] Saved BUY trade to database: {trade.id}")
+                    except Exception as e:
+                        print(f"[TRADING] Error saving trade to database: {e}")
+
                     # Keep only last 20 transactions
                     if len(trading_state['transaction_history']) > 20:
                         trading_state['transaction_history'] = trading_state['transaction_history'][-20:]
@@ -1142,7 +1202,7 @@ def trading_algorithm(user_id, base_price, up_percentage, down_percentage, selec
                         'token': selected_token,
                         'token_symbol': get_token_symbol(selected_token),
                         'price': current_price,
-                        'amount': actual_sell_amount,  # Use actual amount sold (dollar value converted to tokens)
+                        'amount': part_size,  # Use part_size (USD value) for consistency with BUY
                         'base_price_at_execution': current_base_price,
                         'pnl': total_profit,  # P&L for sell transactions (after fee deduction)
                         'total_parts': parts,
@@ -1156,6 +1216,25 @@ def trading_algorithm(user_id, base_price, up_percentage, down_percentage, selec
                     }
 
                     trading_state['transaction_history'].append(tx_record)
+
+                    # Save to database
+                    try:
+                        trade = Trade(
+                            user_id=user_id,
+                            timestamp=timestamp,
+                            action='sell',
+                            token_symbol=get_token_symbol(selected_token),
+                            token_mint=selected_token,
+                            price=current_price,
+                            amount=part_size, # Use part_size (USD value) for consistency with BUY
+                            pnl=total_profit,
+                            network=network,
+                            status='completed'
+                        )
+                        trade.save()
+                        print(f"[TRADING] Saved SELL trade to database: {trade.id}")
+                    except Exception as e:
+                        print(f"[TRADING] Error saving trade to database: {e}")
 
                     # Keep only last 20 transactions
                     if len(trading_state['transaction_history']) > 20:

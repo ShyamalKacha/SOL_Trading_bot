@@ -109,11 +109,11 @@ const Layout = () => {
                                         <div className="vr h-50 my-auto text-muted opacity-25"></div>
                                         <div className="d-flex align-items-center gap-2" title="SOL Balance">
                                             <i className="fa-brands fa-solana text-primary small"></i>
-                                            <span className="small font-archivo text-light">{solBalance.toFixed(3)} SOL</span>
+                                            <span className="small font-archivo text-light">{solBalance.toFixed(4)} SOL</span>
                                         </div>
                                         <div className="d-flex align-items-center gap-2" title="USDC Balance">
                                             <i className="fa-solid fa-dollar-sign text-success small"></i>
-                                            <span className="small font-archivo text-light">{usdcBalance.toFixed(2)} USDC</span>
+                                            <span className="small font-archivo text-light">{usdcBalance.toFixed(4)} USDC</span>
                                         </div>
                                     </div>
 

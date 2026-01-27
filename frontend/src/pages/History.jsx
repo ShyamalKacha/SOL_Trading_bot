@@ -4,6 +4,7 @@ import { toast, ToastContainer } from 'react-toastify';
 
 const History = () => {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [network, setNetwork] = useState('mainnet');
     const [loading, setLoading] = useState(false);
     const [historyData, setHistoryData] = useState(null);
 
@@ -17,7 +18,7 @@ const History = () => {
         setHistoryData(null);
 
         try {
-            const response = await axios.post('/api/trades/history', { date });
+            const response = await axios.post('/api/trades/history', { date, network });
             if (response.data.success) {
                 setHistoryData(response.data);
                 if (response.data.count === 0) {
@@ -66,6 +67,18 @@ const History = () => {
                                 onChange={(e) => setDate(e.target.value)}
                             />
                         </div>
+                        <div className="col-md-4">
+                            <label className="form-label">Network</label>
+                            <select
+                                className="form-select font-archivo"
+                                value={network}
+                                onChange={(e) => setNetwork(e.target.value)}
+                            >
+                                <option value="mainnet">Mainnet</option>
+                                <option value="devnet">Devnet</option>
+                                <option value="testnet">Testnet</option>
+                            </select>
+                        </div>
                         <div className="col-md-2">
                             <button className="btn btn-primary w-100 font-archivo" onClick={fetchHistory} disabled={loading}>
                                 {loading ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="fas fa-search me-2"></i>}
@@ -99,7 +112,7 @@ const History = () => {
                                         <th className="text-end">Price</th>
                                         <th className="text-end">Amount</th>
                                         <th className="text-end">P&L</th>
-                                        <th className="text-center">Status</th>
+
                                     </tr>
                                 </thead>
                                 <tbody className="font-archivo">
@@ -118,18 +131,12 @@ const History = () => {
                                                 <td className={`text-end ${trade.pnl >= 0 ? 'text-success' : 'text-danger'}`}>
                                                     {trade.pnl ? (trade.pnl >= 0 ? '+' : '') + trade.pnl.toFixed(4) : '-'}
                                                 </td>
-                                                <td className="text-center">
-                                                    {trade.status === 'confirmed' ? (
-                                                        <i className="fas fa-check-circle text-success" title="Confirmed"></i>
-                                                    ) : (
-                                                        <i className="fas fa-clock text-warning" title="Pending"></i>
-                                                    )}
-                                                </td>
+
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan="7" className="text-center py-5 text-muted">
+                                            <td colSpan="6" className="text-center py-5 text-muted">
                                                 No trading activity recorded for this date.
                                             </td>
                                         </tr>

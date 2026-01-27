@@ -59,9 +59,9 @@ class Trade:
         return self
 
     @classmethod
-    def find_by_user_and_date(cls, user_id, date_str):
+    def find_by_user_and_date(cls, user_id, date_str, network=None):
         """
-        Find trades for a user on a specific date
+        Find trades for a user on a specific date and optionally filter by network
         date_str format: YYYY-MM-DD
         """
         db = get_db()
@@ -71,10 +71,15 @@ class Trade:
         start_date = f"{date_str} 00:00:00"
         end_date = f"{date_str} 23:59:59"
         
-        cursor = db.trades.find({
+        query = {
             "user_id": user_id_obj,
             "timestamp": {"$gte": start_date, "$lte": end_date}
-        }).sort("timestamp", -1) # Sort by newest first
+        }
+        
+        if network:
+            query["network"] = network
+            
+        cursor = db.trades.find(query).sort("timestamp", -1) # Sort by newest first
         
         trades = []
         for data in cursor:

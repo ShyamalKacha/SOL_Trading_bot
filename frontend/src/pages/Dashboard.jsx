@@ -74,6 +74,16 @@ const Dashboard = () => {
             if (data.is_running !== undefined) {
                 setIsTrading(data.is_running);
             }
+
+            // Restore configuration if bot is running or has data
+            if (data.is_running) {
+                if (data.up_percentage) setUpPercentage(data.up_percentage);
+                if (data.down_percentage) setDownPercentage(data.down_percentage);
+                if (data.trade_amount) setTradeAmount(data.trade_amount);
+                if (data.parts) setParts(data.parts);
+                if (data.selected_token) setSelectedToken(data.selected_token);
+                if (data.network) setNetwork(data.network);
+            }
         } catch (error) {
             console.error("Error fetching trading status", error);
         }
@@ -195,7 +205,8 @@ const Dashboard = () => {
                     setIsTrading(true);
                 }
             } catch (error) {
-                toast.error(error.response?.data?.message || "Failed to start trading", { position: "bottom-right", theme: "dark" });
+                const errorMessage = error.response?.data?.error || error.response?.data?.message || "Failed to start trading";
+                toast.error(errorMessage, { position: "bottom-right", theme: "dark" });
             } finally {
                 setTradingLoading(false);
             }
@@ -324,8 +335,8 @@ const Dashboard = () => {
 
                             {showQR && (
                                 <div className="d-flex flex-column align-items-center mb-3">
-                                    <div className="bg-white p-3 rounded mb-2">
-                                        <QRCodeSVG value={getSolanaPayUrl()} size={150} />
+                                    <div className="bg-black p-3 rounded mb-2">
+                                        <QRCodeSVG fgColor="white" bgColor="black" value={getSolanaPayUrl()} size={150} />
                                     </div>
                                     <div className="text-center text-muted small">Scan with your Solana Wallet</div>
                                 </div>
@@ -423,12 +434,12 @@ const Dashboard = () => {
                                 <div className="col-6">
                                     <label className="form-label text-success">Take Profit (%)</label>
                                     <input type="number" className="form-control font-archivo" min="0" step="0.1"
-                                        value={upPercentage} onChange={e => setUpPercentage(e.target.value)} />
+                                        value={upPercentage} onChange={e => setUpPercentage(e.target.value)} disabled={isTrading} />
                                 </div>
                                 <div className="col-6">
                                     <label className="form-label text-danger">Stop Loss (%)</label>
                                     <input type="number" className="form-control font-archivo" min="0" step="0.1"
-                                        value={downPercentage} onChange={e => setDownPercentage(e.target.value)} />
+                                        value={downPercentage} onChange={e => setDownPercentage(e.target.value)} disabled={isTrading} />
                                 </div>
                             </div>
 
@@ -437,14 +448,14 @@ const Dashboard = () => {
                                 <div className="input-group">
                                     <span className="input-group-text">$</span>
                                     <input type="number" className="form-control font-archivo fw-bold" min="0" step="0.01"
-                                        value={tradeAmount} onChange={e => setTradeAmount(e.target.value)} />
+                                        value={tradeAmount} onChange={e => setTradeAmount(e.target.value)} disabled={isTrading} />
                                 </div>
                             </div>
 
                             <div className="mb-4">
                                 <label className="form-label">Order Splitting (Parts)</label>
                                 <input type="number" className="form-control font-archivo" min="1" step="1"
-                                    value={parts} onChange={e => setParts(e.target.value)} />
+                                    value={parts} onChange={e => setParts(e.target.value)} disabled={isTrading} />
                                 <div className="form-text mt-1">Split volume into smaller orders.</div>
                             </div>
 
