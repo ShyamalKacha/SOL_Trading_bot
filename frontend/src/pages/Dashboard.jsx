@@ -164,17 +164,51 @@ const Dashboard = () => {
         setWithdrawAmount(Math.max(0, max).toFixed(6));
     };
 
-    const handleWithdraw = () => {
-        // Implement withdraw API call here if it existed in the original code,
-        // but looking at `dashboard/index.html` logic, it called `withdrawFunds()` which wasn't fully shown 
-        // in the `main.py` provided.
-        // Assuming there isn't a backend endpoint for this in the provided `main.py` slice, 
-        // I will just show a toast for now or check if I missed it.
-        // Actually, I don't see `/api/withdraw` in the `main.py` snippet I read.
-        // I will assume it's a placeholder or verify `main.py` again.
-        // Checking `main.py` again... `api/withdraw` is NOT there. 
-        // So I'll just put a placeholder toast.
-        toast.info("Withdrawal functionality requires backend implementation.", { position: "bottom-right", theme: "dark" });
+    const handleWithdraw = async () => {
+        if (!withdrawAddress) {
+            toast.warning("Please enter a destination address", { position: "bottom-right", theme: "dark" });
+            return;
+        }
+        if (!withdrawToken) {
+            toast.warning("Please select an asset to withdraw", { position: "bottom-right", theme: "dark" });
+            return;
+        }
+        if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
+            toast.warning("Please enter a valid amount", { position: "bottom-right", theme: "dark" });
+            return;
+        }
+
+        // Find selected token to get decimals
+        const token = balances.find(b => b.mint === withdrawToken);
+        if (!token) {
+            toast.error("Selected token not found in wallet", { position: "bottom-right", theme: "dark" });
+            return;
+        }
+
+        setWithdrawLoading(true);
+        try {
+            const response = await axios.post('/api/withdraw-funds', {
+                destination_address: withdrawAddress,
+                amount: parseFloat(withdrawAmount),
+                token_mint: withdrawToken,
+                decimals: token.decimals
+            });
+
+            if (response.data.success) {
+                toast.success(`Withdrawal Successful: ${response.data.signature.substring(0, 8)}...`, { position: "bottom-right", theme: "dark" });
+                setWithdrawAmount('');
+                setWithdrawAddress('');
+                refreshWalletData(); // Refresh balance
+            } else {
+                toast.error(response.data.message || "Withdrawal failed", { position: "bottom-right", theme: "dark" });
+            }
+        } catch (error) {
+            console.error("Withdrawal error:", error);
+            const errorMsg = error.response?.data?.message || "Error processing withdrawal";
+            toast.error(errorMsg, { position: "bottom-right", theme: "dark" });
+        } finally {
+            setWithdrawLoading(false);
+        }
     };
 
     const startTrading = async () => {
@@ -378,8 +412,12 @@ const Dashboard = () => {
                                 </div>
                             </div>
 
-                            <button className="btn btn-danger w-100" onClick={handleWithdraw}>
-                                <i className="fas fa-paper-plane me-2"></i>Execute Withdrawal
+                            <button className="btn btn-danger w-100" onClick={handleWithdraw} disabled={withdrawLoading}>
+                                {withdrawLoading ? (
+                                    <><span className="spinner-border spinner-border-sm me-2"></span>Processing...</>
+                                ) : (
+                                    <><i className="fas fa-paper-plane me-2"></i>Execute Withdrawal</>
+                                )}
                             </button>
                         </div>
                     </div>
