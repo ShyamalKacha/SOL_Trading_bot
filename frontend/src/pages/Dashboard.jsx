@@ -53,13 +53,30 @@ const Dashboard = () => {
     // Clock
 
 
-    // Initial Data Load
+    const [pollingInterval, setPollingInterval] = useState(null);
+
+    // Initial check on mount (only once)
     useEffect(() => {
         refreshWalletData();
-        // Start polling trading status
-        const statusInterval = setInterval(fetchTradingStatus, 2000);
-        return () => clearInterval(statusInterval);
+        fetchTradingStatus(); // Check ONCE if bot is already running
     }, []);
+
+    // Start/Stop polling based on bot state
+    useEffect(() => {
+        if (isTrading) {
+            // Bot is running - start polling
+            const interval = setInterval(fetchTradingStatus, 2000);
+            setPollingInterval(interval);
+
+            return () => clearInterval(interval);
+        } else {
+            // Bot is stopped - clear any existing polling
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                setPollingInterval(null);
+            }
+        }
+    }, [isTrading]);
 
     const fetchTradingStatus = async () => {
         try {
