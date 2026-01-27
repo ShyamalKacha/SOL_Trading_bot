@@ -98,3 +98,42 @@ class Trade:
             ))
             
         return trades
+
+    @classmethod
+    def find_by_user(cls, user_id, page=1, per_page=15, network=None):
+        """
+        Find trades for a user with pagination
+        """
+        db = get_db()
+        user_id_obj = ObjectId(user_id) if isinstance(user_id, str) else user_id
+        
+        query = {"user_id": user_id_obj}
+        
+        if network:
+            query["network"] = network
+            
+        # Get total count for pagination
+        total_count = db.trades.count_documents(query)
+        
+        # Calculate skip
+        skip = (page - 1) * per_page
+        
+        cursor = db.trades.find(query).sort("timestamp", -1).skip(skip).limit(per_page)
+        
+        trades = []
+        for data in cursor:
+            trades.append(cls(
+                _id=data['_id'],
+                user_id=str(data['user_id']),
+                timestamp=data['timestamp'],
+                action=data['action'],
+                token_mint=data.get('token_mint'),
+                token_symbol=data.get('token_symbol'),
+                price=data.get('price'),
+                amount=data.get('amount'),
+                pnl=data.get('pnl'),
+                network=data.get('network', 'mainnet'),
+                status=data.get('status', 'completed')
+            ))
+            
+        return trades, total_count

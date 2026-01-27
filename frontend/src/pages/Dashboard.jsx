@@ -50,27 +50,79 @@ const Dashboard = () => {
         transaction_history: []
     });
 
+    // Order Log State
+    const [orders, setOrders] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [loadingOrders, setLoadingOrders] = useState(false);
+
     // Clock
 
 
     // Initial Data Load
+    // Initial Data Load
     useEffect(() => {
         refreshWalletData();
+        fetchOrders(1);
+
         // Start polling trading status
         const statusInterval = setInterval(fetchTradingStatus, 2000);
-        return () => clearInterval(statusInterval);
+
+        // Poll orders occasionally (every 10s) to keep list fresh
+        const ordersInterval = setInterval(() => {
+            // We can check if we should refresh, but simply refreshing page 1 is safe enough for updates
+            // Or we just rely on manual refresh / user interaction
+        }, 10000);
+
+        return () => {
+            clearInterval(statusInterval);
+            clearInterval(ordersInterval);
+        };
     }, []);
+
+    const fetchOrders = async (page = 1) => {
+        setLoadingOrders(true);
+        try {
+            // Include network filter if needed, or backend handles it (backend uses user's history)
+            const response = await axios.get(`/api/orders?page=${page}&per_page=15`);
+            if (response.data.success) {
+                setOrders(response.data.orders);
+                setTotalPages(response.data.pagination.total_pages);
+                setCurrentPage(page);
+            }
+        } catch (error) {
+            console.error("Error fetching orders:", error);
+        } finally {
+            setLoadingOrders(false);
+        }
+    };
 
     const fetchTradingStatus = async () => {
         try {
             const response = await axios.get('/api/trading-status');
             const data = response.data;
-            setStatus(prev => ({
-                ...prev,
-                ...data,
-                // Ensure dynamic_base_price is handled correctly
-                dynamic_base_price: data.dynamic_base_price !== undefined ? data.dynamic_base_price : (data.original_base_price || 0)
-            }));
+
+            // Check if we need to refresh orders based on trade_count change
+            // We use a ref or previous state comparison. Since we are inside the closure of the interval, 
+            // relying on 'status' state might be tricky if it's stale. 
+            // However, setStatus receives 'prev' which is current.
+            // Better approach: Store last known trade_count in a separate ref or state that we can check.
+
+            setStatus(prev => {
+                // If trade_count changed, trigger order refresh
+                if (data.trade_count !== undefined && data.trade_count !== prev.trade_count) {
+                    // We need to call fetchOrders here, but we can't await it easily inside setState
+                    // So we trigger it as a side effect.
+                    setTimeout(() => fetchOrders(1), 0);
+                }
+
+                return {
+                    ...prev,
+                    ...data,
+                    // Ensure dynamic_base_price is handled correctly
+                    dynamic_base_price: data.dynamic_base_price !== undefined ? data.dynamic_base_price : (data.original_base_price || 0)
+                };
+            });
 
             // Sync local isTrading state with backend
             if (data.is_running !== undefined) {
@@ -607,37 +659,45 @@ const Dashboard = () => {
                         <i className="fa-solid fa-list-ul text-white"></i>
                         <h5 className="font-archivo tracking-tight mb-0">ORDER LOG</h5>
                     </div>
-                    <Link to="/trade-history" className="btn btn-sm btn-outline-info font-archivo">
-                        <i className="fa-solid fa-clock-rotate-left me-1"></i> View Past Trade
-                    </Link>
+                    <div className="d-flex gap-2">
+                        <button className="btn btn-sm btn-outline-secondary" onClick={() => fetchOrders(currentPage)} disabled={loadingOrders} title="Refresh Log">
+                            <i className={`fas fa-sync-alt ${loadingOrders ? 'fa-spin' : ''}`}></i>
+                        </button>
+                        <Link to="/trade-history" className="btn btn-sm btn-outline-info font-archivo">
+                            <i className="fa-solid fa-clock-rotate-left me-1"></i> History
+                        </Link>
+                    </div>
                 </div>
                 <div className="glass-body p-0">
-                    <div className="table-responsive">
+                    {/* PC View - Table */}
+                    <div className="table-responsive d-none d-md-block">
                         <table className="table table-hover mb-0">
                             <thead>
                                 <tr>
                                     <th>Timestamp</th>
+                                    <th>Network</th>
                                     <th>Action</th>
-                                    <th>Part</th>
+                                    <th>Amount</th>
                                     <th>Asset</th>
                                     <th>Exec Price</th>
-                                    <th>Base Price</th>
                                     <th>P&L</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {status.transaction_history && status.transaction_history.length > 0 ? (
-                                    status.transaction_history.map((tx, idx) => (
+                                {loadingOrders ? (
+                                    <tr><td colSpan="8" className="text-center py-5 font-archivo">Loading orders...</td></tr>
+                                ) : orders && orders.length > 0 ? (
+                                    orders.map((tx, idx) => (
                                         <tr key={idx}>
-                                            <td>{tx.timestamp}</td>
+                                            <td>{new Date(tx.timestamp).toLocaleString()}</td>
+                                            <td><span className={`badge ${tx.network === 'mainnet' ? 'bg-primary' : 'bg-warning text-dark'}`}>{tx.network}</span></td>
                                             <td><span className={`badge ${tx.action === 'buy' ? 'bg-success' : 'bg-danger'}`}>{tx.action.toUpperCase()}</span></td>
-                                            <td>{tx.part_number}/{tx.total_parts}</td>
+                                            <td>{tx.amount ? `$${tx.amount.toFixed(2)}` : '-'}</td>
                                             <td>{tx.token_symbol}</td>
                                             <td>${typeof tx.price === 'number' ? tx.price.toFixed(4) : tx.price}</td>
-                                            <td>${tx.base_price_at_execution ? tx.base_price_at_execution.toFixed(4) : '0.00'}</td>
                                             <td className={tx.pnl >= 0 ? 'text-success' : 'text-danger'}>
-                                                {tx.pnl ? (tx.pnl >= 0 ? '+' : '') + '$' + Math.abs(tx.pnl).toFixed(4) : '-'}
+                                                {tx.pnl !== null ? (tx.pnl >= 0 ? '+' : '') + '$' + Math.abs(tx.pnl).toFixed(4) : '-'}
                                             </td>
                                             <td><span className="badge bg-secondary">{tx.status ? tx.status.toUpperCase() : 'COMPLETED'}</span></td>
                                         </tr>
@@ -652,6 +712,52 @@ const Dashboard = () => {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Mobile View - Cards */}
+                    <div className="d-md-none p-3">
+                        {loadingOrders ? (
+                            <div className="text-center py-5 font-archivo">Loading orders...</div>
+                        ) : orders && orders.length > 0 ? (
+                            orders.map((tx, idx) => (
+                                <div key={idx} className="glass-panel mb-3 p-3" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                                    <div className="d-flex justify-content-between align-items-center mb-2">
+                                        <span className="text-muted small">{new Date(tx.timestamp).toLocaleString()}</span>
+                                        <span className={`badge ${tx.network === 'mainnet' ? 'bg-primary' : 'bg-warning text-dark'}`}>{tx.network}</span>
+                                    </div>
+                                    <div className="d-flex justify-content-between align-items-center mb-2">
+                                        <div className="d-flex align-items-center gap-2">
+                                            <span className={`badge ${tx.action === 'buy' ? 'bg-success' : 'bg-danger'}`}>{tx.action.toUpperCase()}</span>
+                                            <span className="fw-bold">{tx.token_symbol}</span>
+                                        </div>
+                                        <div className={tx.pnl >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}>
+                                            {tx.pnl !== null ? (tx.pnl >= 0 ? '+' : '') + '$' + Math.abs(tx.pnl).toFixed(4) : '-'}
+                                        </div>
+                                    </div>
+                                    <div className="d-flex justify-content-between small text-muted">
+                                        <span>Amt: {tx.amount ? `$${tx.amount.toFixed(2)}` : '-'}</span>
+                                        <span>Price: ${typeof tx.price === 'number' ? tx.price.toFixed(4) : tx.price}</span>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-center py-5 text-muted">NO TRANSACTIONS RECORDED</div>
+                        )}
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="p-3 border-top border-secondary border-opacity-10 d-flex justify-content-between align-items-center">
+                            <button className="btn btn-sm btn-outline-secondary"
+                                onClick={() => fetchOrders(currentPage - 1)} disabled={currentPage === 1 || loadingOrders}>
+                                <i className="fas fa-chevron-left me-1"></i> Prev
+                            </button>
+                            <span className="font-archivo small text-muted">Page {currentPage} of {totalPages}</span>
+                            <button className="btn btn-sm btn-outline-secondary"
+                                onClick={() => fetchOrders(currentPage + 1)} disabled={currentPage === totalPages || loadingOrders}>
+                                Next <i className="fas fa-chevron-right ms-1"></i>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

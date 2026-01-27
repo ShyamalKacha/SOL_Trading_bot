@@ -93,22 +93,29 @@ const TradingGraph = ({ transactionHistory = [], basePrice = 0 }) => {
                 {
                     label: 'Price Action',
                     data: dataPoints,
-                    borderColor: '#3b82f6', // Primary Blue
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    // Theme Colors: Lime / Neon Green
+                    borderColor: '#bef264', // Lime-400 equivalent for "theme" look
+                    backgroundColor: (context) => {
+                        const ctx = context.chart.ctx;
+                        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                        gradient.addColorStop(0, 'rgba(190, 242, 100, 0.5)'); // Lime Glow
+                        gradient.addColorStop(1, 'rgba(190, 242, 100, 0.0)');
+                        return gradient;
+                    },
                     borderWidth: 2,
-                    tension: 0.1, // Slight curve, but mostly straight lines as requested "joint with line"
+                    tension: 0.4, // User requested "smooth" line
                     fill: true,
                     pointBackgroundColor: (context) => {
                         const index = context.dataIndex;
                         const point = context.dataset.data[index];
-                        if (point.action === 'buy') return '#22c55e'; // Green
-                        if (point.action === 'sell') return '#ef4444'; // Red
-                        return '#6b7280'; // Gray for start
+                        if (point.action === 'buy') return '#10b981'; // --success
+                        if (point.action === 'sell') return '#ef4444'; // --danger
+                        return '#475569'; // --text-faint
                     },
                     pointBorderColor: '#fff',
                     pointBorderWidth: 2,
-                    pointRadius: 8, // Large enough for text
-                    pointHoverRadius: 10,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
                 },
             ],
         };
@@ -122,12 +129,12 @@ const TradingGraph = ({ transactionHistory = [], basePrice = 0 }) => {
                 display: false,
             },
             tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.9)',
-                titleColor: '#fff',
-                bodyColor: '#ccc',
-                borderColor: '#333',
+                backgroundColor: 'rgba(15, 23, 42, 0.9)', // --bg-deep/panel
+                titleColor: '#f8fafc', // --text-main
+                bodyColor: '#cbd5e1', // --text-muted
+                borderColor: 'rgba(255, 255, 255, 0.1)',
                 borderWidth: 1,
-                padding: 10,
+                padding: 12,
                 displayColors: false,
                 callbacks: {
                     title: (context) => {
@@ -154,11 +161,14 @@ const TradingGraph = ({ transactionHistory = [], basePrice = 0 }) => {
             x: {
                 grid: {
                     display: false,
-                    color: 'rgba(255, 255, 255, 0.1)'
                 },
                 ticks: {
-                    color: '#888',
-                    maxTicksLimit: 8
+                    color: '#94a3b8', // --text-muted
+                    maxTicksLimit: 6,
+                    font: {
+                        family: "'JetBrains Mono', monospace",
+                        size: 10
+                    }
                 }
             },
             y: {
@@ -166,7 +176,11 @@ const TradingGraph = ({ transactionHistory = [], basePrice = 0 }) => {
                     color: 'rgba(255, 255, 255, 0.05)'
                 },
                 ticks: {
-                    color: '#888',
+                    color: '#94a3b8', // --text-muted
+                    font: {
+                        family: "'JetBrains Mono', monospace",
+                        size: 10
+                    },
                     callback: (value) => '$' + value.toFixed(4)
                 }
             }
@@ -174,12 +188,12 @@ const TradingGraph = ({ transactionHistory = [], basePrice = 0 }) => {
         interaction: {
             mode: 'nearest',
             axis: 'x',
-            intersect: true
+            intersect: false
         }
     };
 
     return (
-        <div style={{ height: '350px', width: '100%' }}>
+        <div className="trading-graph-container">
             <Line data={chartData} options={options} />
         </div>
     );

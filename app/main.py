@@ -820,6 +820,48 @@ def get_trade_history():
         print(f"Error fetching trade history: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
+@app.route('/api/orders', methods=['GET'])
+@require_login
+def get_orders():
+    """Get paginated orders for the logged-in user"""
+    user_id = session['user_id']
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 15))
+    network = request.args.get('network')
+    
+    try:
+        trades, total_count = Trade.find_by_user(user_id, page, per_page, network)
+        
+        trade_list = []
+        for trade in trades:
+            trade_list.append({
+                "timestamp": trade.timestamp,
+                "action": trade.action,
+                "token_symbol": trade.token_symbol,
+                "price": trade.price,
+                "amount": trade.amount,
+                "pnl": trade.pnl,
+                "status": trade.status,
+                "network": trade.network
+            })
+            
+        import math
+        total_pages = math.ceil(total_count / per_page)
+        
+        return jsonify({
+            "success": True,
+            "orders": trade_list,
+            "pagination": {
+                "current_page": page,
+                "total_pages": total_pages,
+                "total_items": total_count,
+                "per_page": per_page
+            }
+        })
+    except Exception as e:
+        print(f"Error fetching orders: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
 def trading_algorithm(user_id, base_price, up_percentage, down_percentage, selected_token, trade_amount, parts, network="mainnet", trading_mode="automatic"):
     """Main trading algorithm with correct laddering logic - each transaction updates the base price"""
     # Ensure application context is active for this thread
@@ -839,6 +881,7 @@ def trading_algorithm(user_id, base_price, up_percentage, down_percentage, selec
 
     trading_state['last_action'] = None
     trading_state['total_profit'] = 0  # Track total profit
+    trading_state['trade_count'] = 0   # Track number of trades for auto-refresh
     trading_state['position'] = 0  # Track number of tokens held
     trading_state['avg_purchase_price'] = 0  # Track average purchase price
 
@@ -851,6 +894,9 @@ def trading_algorithm(user_id, base_price, up_percentage, down_percentage, selec
     # Initially, both arrays have all parts (ready for either buy or sell)
     trading_state['buy_parts'] = list(range(parts))  # All parts available for buying initially
     trading_state['sell_parts'] = list(range(parts))  # All parts available for selling initially
+
+    # RESET transaction history for the new session (Graph will show only this session)
+    trading_state['transaction_history'] = []
 
     # Store trading mode and network
     trading_state['trading_mode'] = trading_mode
@@ -1077,6 +1123,8 @@ def trading_algorithm(user_id, base_price, up_percentage, down_percentage, selec
                             status='completed'
                         )
                         trade.save()
+                        # Increment trade count to trigger frontend refresh
+                        trading_state['trade_count'] = trading_state.get('trade_count', 0) + 1
                         print(f"[TRADING] Saved BUY trade to database: {trade.id}")
                     except Exception as e:
                         print(f"[TRADING] Error saving trade to database: {e}")
@@ -1232,6 +1280,8 @@ def trading_algorithm(user_id, base_price, up_percentage, down_percentage, selec
                             status='completed'
                         )
                         trade.save()
+                        # Increment trade count to trigger frontend refresh
+                        trading_state['trade_count'] = trading_state.get('trade_count', 0) + 1
                         print(f"[TRADING] Saved SELL trade to database: {trade.id}")
                     except Exception as e:
                         print(f"[TRADING] Error saving trade to database: {e}")
