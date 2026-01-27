@@ -10,6 +10,7 @@ A comprehensive multi-user Solana trading bot with a **modern React frontend**, 
 ## 🚀 Features
 
 - **Modern UI**: specialized dark theme built with React & Bootstrap.
+- **Modern UI**: specialized dark theme built with React & Bootstrap.
 - **Multi-User Support**: Individual wallet and trading instances for every user.
 - **Real-Time Dashboard**: Live price monitoring, wallet balances, and active trade status.
 - **Automated Trading**: Advanced ladder trading algorithm with configurable strategies (Take Profit / Stop Loss).

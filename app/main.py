@@ -136,6 +136,13 @@ def get_user_trading_state(user_id):
             "transaction_history": [],
             "buy_parts": [],  # Array to track buy parts
             "sell_parts": [],  # Array to track sell parts
+             # ✅ ADD THESE FIELDS
+            "up_percentage": None,        # ◄── NEW
+            "down_percentage": None,      # ◄── NEW
+            "selected_token": None,       # ◄── NEW
+            "trade_amount": None,         # ◄── NEW
+            "network": None,              # ◄── NEW
+            "trading_mode": None,         # ◄── NEW
         }
     return user_trading_states[user_id]
 
@@ -634,6 +641,16 @@ def get_trading_status():
     status['buy_parts_count'] = len(status.get('buy_parts', []))
     status['sell_parts_count'] = len(status.get('sell_parts', []))
 
+    # ✅ ADD THESE LINES - Include configuration in response
+    # Ensure these fields exist even if bot hasn't been started yet
+    status['up_percentage'] = status.get('up_percentage', None)          # ◄── NEW
+    status['down_percentage'] = status.get('down_percentage', None)      # ◄── NEW
+    status['selected_token'] = status.get('selected_token', None)        # ◄── NEW
+    status['trade_amount'] = status.get('trade_amount', None)            # ◄── NEW
+    status['network'] = status.get('network', None)                      # ◄── NEW
+    status['trading_mode'] = status.get('trading_mode', None)            # ◄── NEW
+
+
     return jsonify(status)
 
 @app.route('/api/pending-approvals')
@@ -769,6 +786,16 @@ def trading_algorithm(user_id, base_price, up_percentage, down_percentage, selec
 
     trading_state = get_user_trading_state(user_id)
     trading_state['is_running'] = True
+
+    # ✅ ADD THESE LINES - Store configuration in state
+    trading_state['up_percentage'] = up_percentage          # ◄── NEW
+    trading_state['down_percentage'] = down_percentage      # ◄── NEW
+    trading_state['selected_token'] = selected_token        # ◄── NEW
+    trading_state['trade_amount'] = trade_amount            # ◄── NEW
+    trading_state['network'] = network                      # ◄── NEW (already exists actually)
+    trading_state['trading_mode'] = trading_mode            # ◄── NEW (already exists actually)
+    
+
     trading_state['last_action'] = None
     trading_state['total_profit'] = 0  # Track total profit
     trading_state['position'] = 0  # Track number of tokens held
