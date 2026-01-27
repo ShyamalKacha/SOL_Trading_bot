@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Logo from "../assets/jumpsol-logo.png"
 
 const Register = () => {
     const [step, setStep] = useState(1); // 1: Register, 2: OTP
@@ -69,24 +70,23 @@ const Register = () => {
         <div className="container-fluid d-flex align-items-center justify-content-center min-vh-100">
             <div className="glass-panel w-100" style={{ maxWidth: '500px' }}>
                 <div className="glass-header text-center justify-content-center py-4">
-                    <div className="d-flex align-items-center gap-2">
-                        <i className="fa-brands fa-solana text-primary fa-2x"></i>
-                        <span className="tracking-tight h4 mb-0">Auto<span className="text-primary">SOL</span></span>
+                    <div className="d-flex align-items-center">
+                        <img src={Logo} alt="AutoSOL" height={40} />
                     </div>
                 </div>
 
                 <div className="glass-body p-4">
-                    <h5 className="font-mono text-center text-muted mb-4 tracking-wide">CREATE ACCOUNT</h5>
+                    <h3 className="font-archivo text-center text-boss mb-4 tracking-wide">CREATE ACCOUNT</h3>
 
                     {step === 1 ? (
                         <form onSubmit={handleRegister}>
                             <div className="mb-3">
                                 <label htmlFor="email" className="form-label">Email Address</label>
-                                <div className="input-group">
+                                <div className="input-group input-group-white">
                                     <span className="input-group-text"><i className="fas fa-envelope"></i></span>
                                     <input
                                         type="email"
-                                        className="form-control font-mono"
+                                        className="form-control font-archivo"
                                         id="email"
                                         name="email"
                                         placeholder="name@domain.com"
@@ -99,11 +99,11 @@ const Register = () => {
 
                             <div className="mb-3">
                                 <label htmlFor="password" className="form-label">Password</label>
-                                <div className="input-group">
+                                <div className="input-group input-group-white">
                                     <span className="input-group-text"><i className="fas fa-lock"></i></span>
                                     <input
                                         type="password"
-                                        className="form-control font-mono"
+                                        className="form-control font-archivo"
                                         id="password"
                                         name="password"
                                         placeholder="••••••••"
@@ -116,11 +116,11 @@ const Register = () => {
 
                             <div className="mb-4">
                                 <label htmlFor="confirmPassword" className="form-label">Confirm Password</label>
-                                <div className="input-group">
+                                <div className="input-group input-group-white">
                                     <span className="input-group-text"><i className="fas fa-check-double"></i></span>
                                     <input
                                         type="password"
-                                        className="form-control font-mono"
+                                        className="form-control font-archivo"
                                         id="confirmPassword"
                                         name="confirmPassword"
                                         placeholder="••••••••"
@@ -132,7 +132,7 @@ const Register = () => {
                             </div>
 
                             <div className="d-grid mb-3">
-                                <button type="submit" className="btn btn-primary btn-lg font-mono" disabled={loading}>
+                                <button type="submit" className="btn btn-primary btn-lg font-archivo" disabled={loading}>
                                     {loading ? (
                                         <><span className="spinner-border spinner-border-sm me-2"></span>PROCESSING...</>
                                     ) : (
@@ -149,7 +149,7 @@ const Register = () => {
                                     <span className="input-group-text"><i className="fas fa-shield-alt"></i></span>
                                     <input
                                         type="text"
-                                        className="form-control font-mono text-center fw-bold"
+                                        className="form-control font-archivo text-center fw-bold"
                                         id="otp"
                                         name="otp"
                                         required
@@ -160,7 +160,7 @@ const Register = () => {
                                 </div>
                             </div>
                             <div className="d-grid">
-                                <button type="button" className="btn btn-success btn-lg font-mono" onClick={handleVerify} disabled={loading}>
+                                <button type="button" className="btn btn-success btn-lg font-archivo" onClick={handleVerify} disabled={loading}>
                                     {loading ? (
                                         <><span className="spinner-border spinner-border-sm me-2"></span>VERIFYING...</>
                                     ) : (
@@ -172,7 +172,7 @@ const Register = () => {
                     )}
 
                     {message && (
-                        <div className={`alert alert-${message.type} font-mono small mt-3`}>
+                        <div className={`alert alert-${message.type} font-archivo small mt-3`}>
                             {message.type === 'danger' && <i className="fas fa-exclamation-triangle me-2"></i>}
                             {message.type === 'success' && <i className="fas fa-check-double me-2"></i>}
                             {message.text}
@@ -182,7 +182,7 @@ const Register = () => {
                     {step === 1 && (
                         <div className="text-center mt-3 pt-3 border-top border-secondary border-opacity-25">
                             <p className="text-muted small mb-0">Already have an account?
-                                <Link to="/login" className="text-accent fw-bold font-mono ms-1">Login</Link>
+                                <Link to="/login" className="text-accent fw-bold font-archivo ms-1">Login</Link>
                             </p>
                         </div>
                     )}

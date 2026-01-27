@@ -10,12 +10,12 @@
     --bg-surface: #131620;
 
     /* Brand Colors - Neon Accents */
-    --primary: #6366f1;
+    --primary: #C1FF72;
     /* Indigo */
     --primary-glow: rgba(99, 102, 241, 0.4);
-    --accent: #0ea5e9;
+    --accent: #C1FF72;
     /* Sky Blue */
-    --accent-glow: rgba(14, 165, 233, 0.4);
+    --accent-glow: var(--primary);
 
     /* Status Colors */
     --success: #10b981;
@@ -32,7 +32,7 @@
     --text-main: #f8fafc;
     --text-muted: #cbd5e1;
     --text-faint: #94a3b8;
-
+    --text-boss: #C1FF72;
     /* Spacing & Layout */
     --radius-sm: 8px;
     --radius-md: 12px;
@@ -40,7 +40,7 @@
     --radius-pill: 9999px;
 
     /* Glassmorphism */
-    --glass-bg: rgba(19, 22, 32, 0.7);
+    --glass-bg: #191819;
     --glass-border: rgba(255, 255, 255, 0.08);
     --glass-shine: rgba(255, 255, 255, 0.03);
     --backdrop-blur: 16px;
@@ -49,16 +49,13 @@
 /* --- Reset & Base --- */
 
 body {
-    background-color: var(--bg-deep);
+    background-color: #000;
     color: var(--text-main);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-size: 0.95rem;
     line-height: 1.6;
     overflow-x: hidden;
     min-height: 100vh;
-    background-image:
-        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(14, 165, 233, 0.08) 0%, transparent 40%);
     background-attachment: fixed;
 }
 
@@ -68,10 +65,10 @@ h3,
 h4,
 h5,
 h6 {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: "Archivo", sans-serif;
     font-weight: 700;
     letter-spacing: -0.02em;
-    color: var(--text-main);
+    color: var(--primary);
     margin-bottom: 1rem;
 }
 
@@ -85,10 +82,14 @@ a:hover {
     color: var(--primary);
 }
 
+.main-color {
+    color: var(--accent)
+}
+
 /* --- Utilities --- */
 
-.font-mono {
-    font-family: 'JetBrains Mono', monospace;
+.font-archivo {
+    font-family: "Archivo", sans-serif;
 }
 
 .tracking-tight {
@@ -115,6 +116,10 @@ a:hover {
     color: var(--text-muted) !important;
 }
 
+.text-boss {
+    color: var(--text-boss) !important
+}
+
 /* --- Glass Components --- */
 
 /* Replaces default Card style */
@@ -122,7 +127,7 @@ a:hover {
     background: var(--glass-bg);
     backdrop-filter: blur(var(--backdrop-blur));
     -webkit-backdrop-filter: blur(var(--backdrop-blur));
-    border: 1px solid var(--glass-border);
+    border: 1px solid white;
     border-radius: var(--radius-lg);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
@@ -148,13 +153,39 @@ a:hover {
     transform: translateY(-2px);
 }
 
+.dash-panel {
+    background: black;
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    border: 1px solid white;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
 .glass-header {
     padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid var(--glass-border);
-    background: rgba(0, 0, 0, 0.2);
+    /* border-bottom: 1px solid var(--glass-border); */
+    /* background: rgba(0, 0, 0, 0.2); */
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+.dash-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #FFFFFF;
+    background: black;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.dash-header h5 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
 }
 
 .glass-header h5 {
@@ -169,6 +200,25 @@ a:hover {
 
 /* --- Form Elements --- */
 
+.input-group-white .form-control,
+.form-select {
+    background-color: white !important;
+    border: 1px solid #000000B3 !important;
+    color: #000000B3 !important;
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    transition: all 0.2s ease;
+    font-family: "Archivo", sans-serif;
+    font-size: 0.9rem;
+}
+
+.input-group-white .form-control:focus,
+.form-select:focus {
+    background-color: white !important;
+    border-color: black !important;
+    color: #000000B3 !important;
+}
+
 .form-control,
 .form-select {
     background-color: rgba(0, 0, 0, 0.2) !important;
@@ -177,7 +227,7 @@ a:hover {
     border-radius: var(--radius-md);
     padding: 0.75rem 1rem;
     transition: all 0.2s ease;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: "Archivo", sans-serif;
     font-size: 0.9rem;
 }
 
@@ -185,7 +235,6 @@ a:hover {
 .form-select:focus {
     background-color: rgba(0, 0, 0, 0.3) !important;
     border-color: var(--primary) !important;
-    box-shadow: 0 0 0 4px var(--primary-glow) !important;
     color: var(--text-main) !important;
 }
 
@@ -194,8 +243,20 @@ a:hover {
     opacity: 0.7;
 }
 
-.form-label {
+.input-group-white .input-group-text {
+    background-color: white;
+    border: 1px solid var(--glass-border);
+    color: #000000B3;
+}
+
+.input-group-text {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
     color: var(--text-muted);
+}
+
+.form-label {
+    color: var(--primary);
     font-size: 0.85rem;
     font-weight: 500;
     margin-bottom: 0.5rem;
@@ -206,12 +267,6 @@ a:hover {
 .form-text {
     color: var(--text-faint) !important;
     font-size: 0.8rem;
-}
-
-.input-group-text {
-    background-color: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--glass-border);
-    color: var(--text-muted);
 }
 
 /* --- Buttons --- */
@@ -227,30 +282,29 @@ a:hover {
     border: none;
 }
 
+
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary), #4f46e5);
-    box-shadow: 0 4px 12px var(--primary-glow);
+    background: linear-gradient(180deg, #2B2C26, #000000);
+    border: 1px solid var(--glass-border);
     color: white;
     cursor: pointer;
 }
 
 .btn-primary:hover {
-    box-shadow: 0 6px 20px var(--primary-glow);
+
     transform: translateY(-1px);
-    background: linear-gradient(135deg, #4f46e5, var(--primary));
+    /* background: var(--primary); */
 }
 
+
 .btn-success {
-    background: linear-gradient(135deg, var(--success), #059669);
-    box-shadow: 0 4px 12px var(--success-glow);
-    color: white;
+    background: var(--primary);
+    /* box-shadow: 0 4px 12px var(--success-glow); */
+    color: black;
     cursor: pointer;
 }
 
-.btn-success:hover {
-    box-shadow: 0 6px 20px var(--success-glow);
-    transform: translateY(-1px);
-}
+
 
 .btn-danger {
     background: linear-gradient(135deg, var(--danger), #dc2626);
@@ -273,7 +327,7 @@ a:hover {
 
 .btn-outline-secondary:hover {
     background: rgba(255, 255, 255, 0.05);
-    color: var(--text-main);
+    color: white;
     border-color: var(--text-muted);
 }
 
@@ -292,7 +346,7 @@ a:hover {
 
 .table thead th {
     background-color: rgba(0, 0, 0, 0.3);
-    color: var(--text-muted);
+    color: var(--text-boss);
     font-weight: 600;
     text-transform: uppercase;
     font-size: 0.75rem;
@@ -320,16 +374,17 @@ a:hover {
 /* --- Navbar --- */
 
 .navbar-custom {
-    background: rgba(5, 5, 17, 0.85);
+    background: black;
     /* Matches --bg-deep with opacity */
     backdrop-filter: blur(20px);
-    border-bottom: 1px solid var(--glass-border);
-    padding: 0.75rem 0;
+    border-bottom: 1px solid white;
+    border-radius: 30px;
+    padding: 0.55rem 0;
     transition: all 0.3s ease;
 }
 
 .navbar-brand {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: "Archivo", sans-serif;
     font-weight: 700;
     font-size: 1.25rem;
     color: var(--text-main) !important;
@@ -347,7 +402,7 @@ a:hover {
 
 .nav-link:hover,
 .nav-link.active {
-    color: var(--text-main) !important;
+    color: black !important;
     background: rgba(255, 255, 255, 0.05);
 }
 
@@ -355,6 +410,11 @@ a:hover {
     color: var(--primary);
     margin-right: 0.4rem;
 }
+.dropdown-menu {
+  --bs-dropdown-link-hover-bg: rgba(255, 255, 255, 0.08);
+  --bs-dropdown-link-hover-color: #ffffff;
+}
+
 
 /* --- Status Indicators --- */
 
@@ -404,7 +464,7 @@ a:hover {
 /* --- Token & Wallet Styles --- */
 
 .wallet-address {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: "Archivo", sans-serif;
     background: rgba(0, 0, 0, 0.3);
     padding: 0.6rem 1rem;
     border-radius: var(--radius-md) 0 0 var(--radius-md);
@@ -473,14 +533,15 @@ a:hover {
 /* --- Modals --- */
 
 .modal-content {
-    background: var(--bg-surface);
+    background: #141414;
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
 }
 
 .modal-header {
-    border-bottom: 1px solid var(--glass-border);
+    border-bottom: 1px solid white;
+    border-radius: 10px;
     background: rgba(0, 0, 0, 0.2);
 }
 
@@ -535,7 +596,7 @@ a:hover {
 
 /* Helper for price displays */
 .price-display {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: "Archivo", sans-serif;
     font-size: 1.1rem;
     font-weight: 600;
 }

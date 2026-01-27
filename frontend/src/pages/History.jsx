@@ -52,7 +52,7 @@ const History = () => {
                 <div className="glass-header">
                     <div className="d-flex align-items-center gap-2">
                         <i className="fa-solid fa-filter text-info"></i>
-                        <h5 className="font-mono tracking-tight">SEARCH FILTERS</h5>
+                        <h5 className="font-archivo tracking-tight">SEARCH FILTERS</h5>
                     </div>
                 </div>
                 <div className="glass-body">
@@ -61,13 +61,13 @@ const History = () => {
                             <label className="form-label">Select Date</label>
                             <input
                                 type="date"
-                                className="form-control font-mono"
+                                className="form-control font-archivo"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
                             />
                         </div>
                         <div className="col-md-2">
-                            <button className="btn btn-primary w-100 font-mono" onClick={fetchHistory} disabled={loading}>
+                            <button className="btn btn-primary w-100 font-archivo" onClick={fetchHistory} disabled={loading}>
                                 {loading ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="fas fa-search me-2"></i>}
                                 LOAD
                             </button>
@@ -82,9 +82,9 @@ const History = () => {
                     <div className="glass-header d-flex justify-content-between align-items-center">
                         <div className="d-flex align-items-center gap-2">
                             <i className="fa-solid fa-list-ul text-white"></i>
-                            <h5 className="font-mono tracking-tight mb-0">EXECUTION LOG</h5>
+                            <h5 className="font-archivo tracking-tight mb-0">EXECUTION LOG</h5>
                         </div>
-                        <div className={`badge font-mono ${historyData.total_pnl >= 0 ? 'bg-success' : 'bg-danger'}`}>
+                        <div className={`badge font-archivo ${historyData.total_pnl >= 0 ? 'bg-success' : 'bg-danger'}`}>
                             Daily P&L: {historyData.total_pnl >= 0 ? '+' : ''}{historyData.total_pnl.toFixed(4)}
                         </div>
                     </div>
@@ -102,7 +102,7 @@ const History = () => {
                                         <th className="text-center">Status</th>
                                     </tr>
                                 </thead>
-                                <tbody className="font-mono">
+                                <tbody className="font-archivo">
                                     {historyData.trades.length > 0 ? (
                                         historyData.trades.map((trade, idx) => (
                                             <tr key={idx}>

@@ -8,8 +8,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const Dashboard = () => {
     const { user } = useAuth();
-    // System State
-    const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+
 
     // Wallet State
     const [walletAddress, setWalletAddress] = useState('Connecting to Solana...');
@@ -50,10 +49,7 @@ const Dashboard = () => {
     });
 
     // Clock
-    useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
-        return () => clearInterval(timer);
-    }, []);
+
 
     // Initial Data Load
     useEffect(() => {
@@ -228,28 +224,12 @@ const Dashboard = () => {
     return (
         <div className="container-xl pb-5">
             <ToastContainer />
-            {/* Header Section */}
-            <div className="row align-items-end mb-4">
-                <div className="col-md-8">
-                    <h6 className="text-primary tracking-wide text-uppercase mb-2">System Status: Online</h6>
-                    <h1 className="display-5 fw-bold mb-0">TRADING <span className="text-primary-gradient">COMMAND CENTER</span></h1>
-                    <p className="text-muted mt-2 mb-0">Real-time and automated trade execution engine.</p>
-                </div>
-                <div className="col-md-4 text-md-end mt-3 mt-md-0">
-                    <div className="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill"
-                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)' }}>
-                        <span className="status-dot online"></span>
-                        <span className="font-mono text-light">{currentTime}</span>
-                    </div>
-                </div>
-            </div>
-
             {/* Wallet Command Center */}
-            <div className="glass-panel">
-                <div className="glass-header">
+            <div className="dash-panel">
+                <div className="dash-header">
                     <div className="d-flex align-items-center gap-2">
                         <i className="fa-solid fa-wallet text-primary"></i>
-                        <h5 className="font-mono tracking-tight">WALLET OPERATIONS</h5>
+                        <h5 className="font-archivo tracking-tight">WALLET OPERATIONS</h5>
                     </div>
                     <button className="btn btn-sm btn-outline-secondary" onClick={refreshWalletData} disabled={loadingWallet} title="Sync Chain Data">
                         <i className={`fas fa-sync-alt me-1 ${loadingWallet ? 'fa-spin' : ''}`}></i> SYNC
@@ -261,7 +241,7 @@ const Dashboard = () => {
                         <div className="col-lg-5">
                             <label className="form-label">Wallet Address</label>
                             <div className="input-group mb-3">
-                                <div className="wallet-address flex-grow-1 font-mono text-primary" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <div className="wallet-address flex-grow-1 font-archivo text-primary" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                     {walletAddress}
                                 </div>
                                 <button className="btn btn-outline-secondary copy-btn" type="button"
@@ -279,7 +259,7 @@ const Dashboard = () => {
                                 {loadingWallet ? (
                                     <div className="text-center py-4 text-muted">
                                         <div className="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
-                                        <div className="font-mono small">SCANNING ASSETS...</div>
+                                        <div className="font-archivo small">SCANNING ASSETS...</div>
                                     </div>
                                 ) : balances.length > 0 ? (
                                     <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
@@ -290,7 +270,7 @@ const Dashboard = () => {
                                                     <th className="text-end">Holding</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="font-mono">
+                                            <tbody className="font-archivo">
                                                 {balances.map((b, idx) => (
                                                     <tr key={idx}>
                                                         <td>
@@ -302,7 +282,7 @@ const Dashboard = () => {
                                                                 </div>
                                                             </div>
                                                         </td>
-                                                        <td className="text-end font-mono">{b.balance.toFixed(6)}</td>
+                                                        <td className="text-end font-archivo">{b.balance.toFixed(6)}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -321,23 +301,23 @@ const Dashboard = () => {
             </div>
 
             {/* Funding Operations */}
-            <div className="glass-panel">
-                <div className="glass-header">
+            <div className="dash-panel">
+                <div className="dash-header">
                     <div className="d-flex align-items-center gap-2">
                         <i className="fa-solid fa-money-bill-transfer text-success"></i>
-                        <h5 className="font-mono tracking-tight">FUNDING OPERATIONS</h5>
+                        <h5 className="font-archivo tracking-tight">FUNDING OPERATIONS</h5>
                     </div>
                 </div>
                 <div className="glass-body border-top border-secondary border-opacity-10">
                     <div className="row g-4">
                         {/* Deposit */}
                         <div className="col-md-6 border-end border-secondary border-opacity-10">
-                            <h6 className="text-success mb-3"><i className="fas fa-arrow-down me-2"></i>Inbound Transfer</h6>
+
                             <div className="mb-3">
                                 <label className="form-label">Deposit SOL</label>
                                 <div className="input-group">
                                     <span className="input-group-text">SOL</span>
-                                    <input type="number" className="form-control font-mono" placeholder="0.00" min="0" step="0.01"
+                                    <input type="number" className="form-control font-archivo" placeholder="0.00" min="0" step="0.01"
                                         value={depositAmount} onChange={e => setDepositAmount(e.target.value)} />
                                 </div>
                             </div>
@@ -358,17 +338,17 @@ const Dashboard = () => {
 
                         {/* Withdraw */}
                         <div className="col-md-6">
-                            <h6 className="text-danger mb-3"><i className="fas fa-arrow-up me-2"></i>Outbound Transfer</h6>
+
                             <div className="mb-3">
                                 <label className="form-label">Destination Address</label>
-                                <input type="text" className="form-control font-mono" placeholder="Solana Wallet Address"
+                                <input type="text" className="form-control font-archivo" placeholder="Solana Wallet Address"
                                     value={withdrawAddress} onChange={e => setWithdrawAddress(e.target.value)} />
                             </div>
 
                             <div className="row g-2 mb-3">
                                 <div className="col-8">
                                     <label className="form-label">Asset</label>
-                                    <select className="form-select font-mono" value={withdrawToken} onChange={e => setWithdrawToken(e.target.value)}>
+                                    <select className="form-select font-archivo" value={withdrawToken} onChange={e => setWithdrawToken(e.target.value)}>
                                         <option value="" disabled>Select Token...</option>
                                         {balances.length > 0 && balances.map((b, idx) => (
                                             <option key={idx} value={b.mint}>{b.token} ({b.balance.toFixed(4)})</option>
@@ -378,9 +358,9 @@ const Dashboard = () => {
                                 <div className="col-4">
                                     <label className="form-label">Amount</label>
                                     <div className="input-group">
-                                        <input type="number" className="form-control font-mono" placeholder="0.00"
+                                        <input type="number" className="form-control font-archivo" placeholder="0.00"
                                             value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} />
-                                        <button className="btn btn-outline-secondary font-mono" type="button" onClick={handleMaxWithdraw}>MAX</button>
+                                        <button className="btn btn-outline-secondary font-archivo" type="button" onClick={handleMaxWithdraw}>MAX</button>
                                     </div>
                                 </div>
                             </div>
@@ -397,17 +377,17 @@ const Dashboard = () => {
             <div className="row g-4 mb-4">
                 {/* Configuration */}
                 <div className="col-lg-4">
-                    <div className="glass-panel h-100">
-                        <div className="glass-header">
+                    <div className="dash-panel h-100">
+                        <div className="dash-header">
                             <div className="d-flex align-items-center gap-2">
                                 <i className="fa-solid fa-sliders text-accent"></i>
-                                <h5 className="font-mono tracking-tight">STRATEGY CONFIG</h5>
+                                <h5 className="font-archivo tracking-tight">STRATEGY CONFIG</h5>
                             </div>
                         </div>
                         <div className="glass-body">
                             <div className="mb-3">
                                 <label className="form-label">Environment</label>
-                                <select className="form-select font-mono" value={network} onChange={e => setNetwork(e.target.value)}>
+                                <select className="form-select font-archivo" value={network} onChange={e => setNetwork(e.target.value)}>
                                     <option value="mainnet">Mainnet (Live)</option>
                                     <option value="devnet">Devnet (Simulation)</option>
                                     <option value="testnet">Testnet (Beta)</option>
@@ -415,13 +395,13 @@ const Dashboard = () => {
                             </div>
                             <div className="mb-3">
                                 <label className="form-label">Target Asset</label>
-                                <select className="form-select font-mono mb-2" value={selectedToken} onChange={e => setSelectedToken(e.target.value)}>
+                                <select className="form-select font-archivo mb-2" value={selectedToken} onChange={e => setSelectedToken(e.target.value)}>
                                     <option value="So11111111111111111111111111111111111111112">SOL - Native Solana</option>
                                     <option value="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v">USDC - USD Coin</option>
                                     <option value="4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R">RAY - Raydium</option>
                                     <option value="JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN">JUP - Jupiter</option>
                                 </select>
-                                <input type="text" className="form-control font-mono text-xs"
+                                <input type="text" className="form-control font-archivo text-xs"
                                     placeholder="Or paste Custom Mint Address"
                                     value={customToken} onChange={e => setCustomToken(e.target.value)} />
                             </div>
@@ -431,23 +411,23 @@ const Dashboard = () => {
 
                 {/* Execution Params */}
                 <div className="col-lg-4">
-                    <div className="glass-panel h-100">
-                        <div className="glass-header">
+                    <div className="dash-panel h-100">
+                        <div className="dash-header">
                             <div className="d-flex align-items-center gap-2">
                                 <i className="fa-solid fa-microchip text-warning"></i>
-                                <h5 className="font-mono tracking-tight">EXECUTION PARAMS</h5>
+                                <h5 className="font-archivo tracking-tight">EXECUTION PARAMS</h5>
                             </div>
                         </div>
                         <div className="glass-body">
                             <div className="row g-2 mb-3">
                                 <div className="col-6">
                                     <label className="form-label text-success">Take Profit (%)</label>
-                                    <input type="number" className="form-control font-mono" min="0" step="0.1"
+                                    <input type="number" className="form-control font-archivo" min="0" step="0.1"
                                         value={upPercentage} onChange={e => setUpPercentage(e.target.value)} />
                                 </div>
                                 <div className="col-6">
                                     <label className="form-label text-danger">Stop Loss (%)</label>
-                                    <input type="number" className="form-control font-mono" min="0" step="0.1"
+                                    <input type="number" className="form-control font-archivo" min="0" step="0.1"
                                         value={downPercentage} onChange={e => setDownPercentage(e.target.value)} />
                                 </div>
                             </div>
@@ -456,14 +436,14 @@ const Dashboard = () => {
                                 <label className="form-label">Trade Volume (USD)</label>
                                 <div className="input-group">
                                     <span className="input-group-text">$</span>
-                                    <input type="number" className="form-control font-mono fw-bold" min="0" step="0.01"
+                                    <input type="number" className="form-control font-archivo fw-bold" min="0" step="0.01"
                                         value={tradeAmount} onChange={e => setTradeAmount(e.target.value)} />
                                 </div>
                             </div>
 
                             <div className="mb-4">
                                 <label className="form-label">Order Splitting (Parts)</label>
-                                <input type="number" className="form-control font-mono" min="1" step="1"
+                                <input type="number" className="form-control font-archivo" min="1" step="1"
                                     value={parts} onChange={e => setParts(e.target.value)} />
                                 <div className="form-text mt-1">Split volume into smaller orders.</div>
                             </div>
@@ -487,27 +467,27 @@ const Dashboard = () => {
 
                 {/* Live Monitor */}
                 <div className="col-lg-4">
-                    <div className="glass-panel h-100">
-                        <div className="glass-header">
+                    <div className="dash-panel h-100">
+                        <div className="dash-header">
                             <div className="d-flex align-items-center gap-2">
                                 <i className="fa-solid fa-satellite-dish text-info"></i>
-                                <h5 className="font-mono tracking-tight">LIVE MONITOR</h5>
+                                <h5 className="font-archivo tracking-tight">LIVE MONITOR</h5>
                             </div>
                         </div>
                         <div className="glass-body">
                             <div className="d-flex align-items-center justify-content-between mb-4 p-3 rounded"
                                 style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)' }}>
                                 <div>
-                                    <div className="text-muted small text-uppercase">Engine Status</div>
+                                    <div className="text-boss small text-uppercase">Engine Status</div>
                                     <div className="d-flex align-items-center mt-1">
                                         <span className={`status-indicator ${isTrading ? 'status-active' : 'status-inactive'}`}></span>
-                                        <span className={`font-mono fw-bold ${isTrading ? 'text-success' : 'text-muted'}`}>
+                                        <span className={`font-archivo fw-bold ${isTrading ? 'text-success' : 'text-muted'}`}>
                                             {isTrading ? 'ACTIVE' : 'STANDBY'}
                                         </span>
                                     </div>
                                 </div>
                                 <div className="text-end">
-                                    <div className="text-muted small text-uppercase">Current Price</div>
+                                    <div className="text-boss small text-uppercase">Current Price</div>
                                     <div className="price-display text-primary">
                                         ${status.current_price < 0.01 ? status.current_price.toFixed(8) : status.current_price.toFixed(4)}
                                     </div>
@@ -517,16 +497,16 @@ const Dashboard = () => {
                             <div className="row g-3 mb-3">
                                 <div className="col-6">
                                     <div className="p-2 rounded bg-opacity-10 bg-white">
-                                        <label className="small text-muted d-block">Base Price</label>
-                                        <span className="font-mono fw-bold">
+                                        <label className="small text-boss d-block">Base Price</label>
+                                        <span className="font-archivo fw-bold">
                                             {status.dynamic_base_price ? (status.dynamic_base_price < 0.01 ? status.dynamic_base_price.toFixed(8) : status.dynamic_base_price.toFixed(4)) : '--'}
                                         </span>
                                     </div>
                                 </div>
                                 <div className="col-6">
                                     <div className="p-2 rounded bg-opacity-10 bg-white">
-                                        <label className="small text-muted d-block">Dynamic Base</label>
-                                        <span className="font-mono fw-warning">
+                                        <label className="small text-boss d-block">Dynamic Base</label>
+                                        <span className="font-archivo fw-warning">
                                             ${status.dynamic_base_price ? (status.dynamic_base_price < 0.01 ? status.dynamic_base_price.toFixed(8) : status.dynamic_base_price.toFixed(4)) : '0.00'}
                                         </span>
                                     </div>
@@ -535,15 +515,15 @@ const Dashboard = () => {
 
                             <div className="p-3 rounded text-center mb-3"
                                 style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)' }}>
-                                <label className="text-muted small text-uppercase mb-1">Cumulative P&L</label>
-                                <div className={`display-6 font-mono fw-bold ${status.total_profit > 0 ? 'text-success' : status.total_profit < 0 ? 'text-danger' : 'text-muted'}`}>
+                                <label className="text-boss small text-uppercase mb-1">Cumulative P&L</label>
+                                <div className={`display-6 font-archivo fw-bold ${status.total_profit > 0 ? 'text-success' : status.total_profit < 0 ? 'text-danger' : 'text-muted'}`}>
                                     {status.total_profit >= 0 ? '+' : '-'}${Math.abs(status.total_profit).toFixed(4)}
                                 </div>
                             </div>
 
                             <div className="d-flex justify-content-between align-items-center">
-                                <span className="text-muted small">Last Action</span>
-                                <span className={`badge font-mono ${status.last_action?.includes('buy') ? 'bg-success' : status.last_action?.includes('sell') ? 'bg-danger' : 'bg-secondary'}`}>
+                                <span className="text-boss small">Last Action</span>
+                                <span className={`badge font-archivo ${status.last_action?.includes('buy') ? 'bg-success' : status.last_action?.includes('sell') ? 'bg-danger' : 'bg-secondary'}`}>
                                     {status.last_action ? status.last_action.toUpperCase() : 'NONE'}
                                 </span>
                             </div>
@@ -553,13 +533,13 @@ const Dashboard = () => {
             </div>
 
             {/* Order Log */}
-            <div className="glass-panel">
-                <div className="glass-header d-flex justify-content-between align-items-center">
+            <div className="dash-panel">
+                <div className="dash-header d-flex justify-content-between align-items-center">
                     <div className="d-flex align-items-center gap-2">
                         <i className="fa-solid fa-list-ul text-white"></i>
-                        <h5 className="font-mono tracking-tight mb-0">ORDER LOG</h5>
+                        <h5 className="font-archivo tracking-tight mb-0">ORDER LOG</h5>
                     </div>
-                    <Link to="/trade-history" className="btn btn-sm btn-outline-info font-mono">
+                    <Link to="/trade-history" className="btn btn-sm btn-outline-info font-archivo">
                         <i className="fa-solid fa-clock-rotate-left me-1"></i> View Past Trade
                     </Link>
                 </div>
@@ -596,7 +576,7 @@ const Dashboard = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="8" className="text-center py-5 text-muted font-mono">
+                                        <td colSpan="8" className="text-center py-5 text-muted font-archivo">
                                             NO TRANSACTIONS RECORDED
                                         </td>
                                     </tr>

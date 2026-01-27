@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+import Logo from "../assets/jumpsol-logo.png"
+
 
 const Layout = () => {
     const { user, logout } = useAuth();
@@ -83,8 +85,9 @@ const Layout = () => {
             <nav className="navbar navbar-expand-lg fixed-top navbar-custom">
                 <div className="container-xl">
                     <Link className="navbar-brand d-flex align-items-center gap-2" to="/dashboard">
-                        <i className="fa-brands fa-solana text-primary fa-lg"></i>
-                        <span className="tracking-tight">Auto<span className="text-primary">SOL</span></span>
+                        <div className="logo d-flex align-items-center">
+                            <img src={Logo} alt="AutoSOL" height={40} />
+                        </div>
                     </Link>
 
                     {user && (
@@ -101,16 +104,16 @@ const Layout = () => {
                                         style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)' }}>
                                         <div className="d-flex align-items-center gap-2">
                                             <span className="status-indicator status-active"></span>
-                                            <span className="small font-mono text-muted">MAINNET</span>
+                                            <span className="small font-archivo text-muted">MAINNET</span>
                                         </div>
                                         <div className="vr h-50 my-auto text-muted opacity-25"></div>
                                         <div className="d-flex align-items-center gap-2" title="SOL Balance">
                                             <i className="fa-brands fa-solana text-primary small"></i>
-                                            <span className="small font-mono text-light">{solBalance.toFixed(3)} SOL</span>
+                                            <span className="small font-archivo text-light">{solBalance.toFixed(3)} SOL</span>
                                         </div>
                                         <div className="d-flex align-items-center gap-2" title="USDC Balance">
                                             <i className="fa-solid fa-dollar-sign text-success small"></i>
-                                            <span className="small font-mono text-light">{usdcBalance.toFixed(2)} USDC</span>
+                                            <span className="small font-archivo text-light">{usdcBalance.toFixed(2)} USDC</span>
                                         </div>
                                     </div>
 
@@ -159,8 +162,8 @@ const Layout = () => {
                     <div className="modal fade show" style={{ display: 'block' }} tabIndex="-1" aria-modal="true" role="dialog">
                         <div className="modal-dialog modal-lg modal-dialog-centered">
                             <div className="modal-content glass-panel border-0 mb-0">
-                                <div className="modal-header border-0">
-                                    <h5 className="modal-title font-mono">
+                                <div className="modal-header ">
+                                    <h5 className="modal-title font-archivo">
                                         <i className="fa-solid fa-wallet text-primary me-2"></i>WALLET DETAILS
                                     </h5>
                                     <button type="button" className="btn-close" onClick={closeWalletModal} aria-label="Close"></button>
@@ -171,7 +174,7 @@ const Layout = () => {
                                             <div className="mb-4">
                                                 <label className="form-label">Active Wallet Address</label>
                                                 <div className="input-group">
-                                                    <input type="text" className="form-control font-mono" value={modalWalletData.address} readOnly
+                                                    <input type="text" className="form-control font-archivo" value={modalWalletData.address} readOnly
                                                         style={{ background: 'rgba(0,0,0,0.2)' }} />
                                                     <button className="btn btn-outline-secondary" type="button"
                                                         onClick={copyModalAddress} title="Copy Address">
@@ -207,7 +210,7 @@ const Layout = () => {
                                                                     <tr key={idx}>
                                                                         <td>{b.token}</td>
                                                                         <td>{b.name || '-'}</td>
-                                                                        <td className="text-end font-mono">{b.balance.toFixed(6)}</td>
+                                                                        <td className="text-end font-archivo">{b.balance.toFixed(6)}</td>
                                                                     </tr>
                                                                 ))
                                                             ) : (
@@ -221,7 +224,7 @@ const Layout = () => {
                                     </div>
                                 </div>
                                 <div className="modal-footer border-0 p-3">
-                                    <button type="button" className="btn btn-outline-secondary" onClick={closeWalletModal}>Close</button>
+                                    <button type="button" className="btn btn-primary" onClick={closeWalletModal}>Close</button>
                                     <button type="button" className="btn btn-primary" onClick={fetchModalData}>
                                         <i className="fas fa-sync-alt me-2"></i>Refresh Data
                                     </button>
