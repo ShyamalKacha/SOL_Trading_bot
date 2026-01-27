@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+import TradingGraph from '../components/TradingGraph';
+
 const Dashboard = () => {
     const { user } = useAuth();
 
@@ -542,6 +544,23 @@ const Dashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Trading Graph */}
+            <div className="dash-panel mb-4">
+                <div className="dash-header d-flex justify-content-between align-items-center">
+                    <div className="d-flex align-items-center gap-2">
+                        <i className="fa-solid fa-chart-line text-warning"></i>
+                        <h5 className="font-archivo tracking-tight mb-0">PERFORMANCE GRAPH</h5>
+                    </div>
+                </div>
+                <div className="glass-body">
+                    <TradingGraph
+                        transactionHistory={status.transaction_history}
+                        basePrice={status.dynamic_base_price || 0}
+                    />
+                </div>
+            </div>
+
 
             {/* Order Log */}
             <div className="dash-panel">
