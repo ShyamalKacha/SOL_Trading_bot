@@ -382,6 +382,40 @@ def get_wallet_balance_default():
                 "balances": []
             })
 
+        # GET NETWORK FROM QUERY PARAMETER (default to mainnet)
+        network = request.args.get('network', 'mainnet').lower()
+        
+        # Validate network
+        if network not in ['mainnet', 'devnet', 'testnet']:
+            network = 'mainnet'
+
+        # Fetch real balance from Solana blockchain with specified network
+        response = get_wallet_balance(wallet.public_key, network)
+        
+        # Update the wallet's balance in the database
+        if isinstance(response, dict) and response.get("success"):
+            wallet.update_balance(response.get("balances", []))
+        
+        return jsonify(response)
+    except Exception as e:
+        print(f"Error in get_wallet_balance_default: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Error getting wallet balance: {str(e)}",
+            "balances": []
+        })
+    """Get wallet balance for the logged-in user"""
+    try:
+        user_id = session['user_id']
+        wallet = Wallet.find_by_user_id(user_id)
+
+        if not wallet:
+            return jsonify({
+                "success": False,
+                "message": "Wallet not found for user",
+                "balances": []
+            })
+
         # Fetch real balance from Solana blockchain
         response = get_wallet_balance(wallet.public_key, "mainnet")
         # Update the wallet's balance in the database
@@ -419,9 +453,9 @@ def get_wallet_balance(wallet_address, network="mainnet"):
             else:
                 rpc_url = "https://api.devnet.solana.com"
         elif network.lower() == "testnet":
-            if helius_api_key:
-                rpc_url = f"https://testnet.helius-rpc.com/?api-key={helius_api_key}"
-            else:
+            # if helius_api_key:
+            #     rpc_url = f"https://testnet.helius-rpc.com/?api-key={helius_api_key}"
+            # else:
                 rpc_url = "https://api.testnet.solana.com"
         else:  # default to mainnet
             if helius_api_key:
