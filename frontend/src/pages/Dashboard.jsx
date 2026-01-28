@@ -408,7 +408,7 @@ const Dashboard = () => {
                         <i className="fa-solid fa-wallet text-primary"></i>
                         <h5 className="font-archivo tracking-tight">WALLET OPERATIONS</h5>
                     </div>
-                    <button className="btn btn-sm btn-outline-secondary" onClick={refreshWalletData} disabled={loadingWallet} title="Sync Chain Data">
+                    <button className="btn btn-sm btn-outline-secondary" onClick={()=>refreshWalletData()} disabled={loadingWallet} title="Sync Chain Data">
                         <i className={`fas fa-sync-alt me-1 ${loadingWallet ? 'fa-spin' : ''}`}></i> SYNC
                     </button>
                 </div>
@@ -448,6 +448,7 @@ const Dashboard = () => {
                                                 </tr>
                                             </thead>
                                             <tbody className="font-archivo">
+                                                
                                                 {balances.map((b, idx) => (
                                                     <tr key={idx}>
                                                         <td>

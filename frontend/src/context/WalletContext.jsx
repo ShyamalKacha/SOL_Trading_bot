@@ -24,6 +24,7 @@ export const WalletProvider = ({ children }) => {
         
         setLoading(true);
         setError(null);
+        console.log(network,"network");
         
         try {
             // Fetch wallet info (only once, address doesn't change)
