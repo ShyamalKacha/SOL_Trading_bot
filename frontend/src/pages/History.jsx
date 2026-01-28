@@ -8,6 +8,7 @@ const History = () => {
     // State
     const [orders, setOrders] = useState([]);
     const [network, setNetwork] = useState('mainnet');
+    const [date, setDate] = useState(''); // Date filter
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -17,14 +18,20 @@ const History = () => {
 
     useEffect(() => {
         fetchOrders(1);
-    }, [network]); // Refetch when network changes
+    }, [network, date]); // Refetch when network or date changes
 
     const fetchOrders = async (page = 1) => {
         setLoading(true);
         // Clear old data while loading to show feedback
         setOrders([]);
         try {
-            const response = await axios.get(`/api/orders?page=${page}&per_page=15&network=${network}`);
+            // Build query params
+            let url = `/api/orders?page=${page}&per_page=15&network=${network}`;
+            if (date) {
+                url += `&date=${date}`;
+            }
+
+            const response = await axios.get(url);
             if (response.data.success) {
                 setOrders(response.data.orders);
                 setTotalPages(response.data.pagination.total_pages);
@@ -57,19 +64,30 @@ const History = () => {
             <div className="glass-panel mb-4">
                 <div className="glass-body py-3">
                     <div className="row align-items-center">
-                        <div className="col-md-4">
-                            <label className="form-label mb-0 me-2">Network Filter:</label>
-                            <select
-                                className="form-select font-archivo d-inline-block w-auto"
-                                value={network}
-                                onChange={(e) => setNetwork(e.target.value)}
-                            >
-                                <option value="mainnet">Mainnet</option>
-                                <option value="devnet">Devnet</option>
-                                <option value="testnet">Testnet</option>
-                            </select>
+                        <div className="col-md-8 d-flex flex-wrap gap-3">
+                            <div className="d-flex align-items-center">
+                                <label className="form-label mb-0 me-2 text-nowrap">Filter by Date:</label>
+                                <input
+                                    type="date"
+                                    className="form-control font-archivo d-inline-block w-auto"
+                                    value={date}
+                                    onChange={(e) => setDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="d-flex align-items-center">
+                                <label className="form-label mb-0 me-2 text-nowrap">Network:</label>
+                                <select
+                                    className="form-select font-archivo d-inline-block w-auto"
+                                    value={network}
+                                    onChange={(e) => setNetwork(e.target.value)}
+                                >
+                                    <option value="mainnet">Mainnet</option>
+                                    <option value="devnet">Devnet</option>
+                                    <option value="testnet">Testnet</option>
+                                </select>
+                            </div>
                         </div>
-                        <div className="col-md-8 text-end">
+                        <div className="col-md-4 text-end mt-3 mt-md-0">
                             <button className="btn btn-sm btn-outline-secondary" onClick={() => fetchOrders(currentPage)} disabled={loading}>
                                 <i className={`fas fa-sync-alt me-1 ${loading ? 'fa-spin' : ''}`}></i> Refresh
                             </button>

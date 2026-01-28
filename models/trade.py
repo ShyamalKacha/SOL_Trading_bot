@@ -100,7 +100,7 @@ class Trade:
         return trades
 
     @classmethod
-    def find_by_user(cls, user_id, page=1, per_page=15, network=None):
+    def find_by_user(cls, user_id, page=1, per_page=15, network=None, date=None):
         """
         Find trades for a user with pagination
         """
@@ -111,6 +111,11 @@ class Trade:
         
         if network:
             query["network"] = network
+            
+        if date:
+            # Timestamp is stored as string "YYYY-MM-DD HH:MM:SS"
+            # We want to match strings starting with the date
+            query["timestamp"] = {"$regex": f"^{date}"}
             
         # Get total count for pagination
         total_count = db.trades.count_documents(query)

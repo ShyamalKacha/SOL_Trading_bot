@@ -862,9 +862,10 @@ def get_orders():
     page = int(request.args.get('page', 1))
     per_page = int(request.args.get('per_page', 15))
     network = request.args.get('network')
+    date = request.args.get('date')
     
     try:
-        trades, total_count = Trade.find_by_user(user_id, page, per_page, network)
+        trades, total_count = Trade.find_by_user(user_id, page, per_page, network, date)
         
         trade_list = []
         for trade in trades:
