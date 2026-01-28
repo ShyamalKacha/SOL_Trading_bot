@@ -64,8 +64,8 @@ const Layout = () => {
                             <div className="collapse navbar-collapse" id="navbarNav">
                                 <div className="mx-auto"></div>
 
-                                <div className="d-flex align-items-center gap-3">
-                                    <div className="d-none d-lg-flex align-items-center px-3 py-1 rounded-pill gap-3"
+                                <div className="d-flex flex-column flex-lg-row align-items-center gap-3">
+                                    <div className="d-flex flex-wrap justify-content-center align-items-center px-3 py-1 rounded-pill gap-3"
                                         style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)' }}>
 
                                         {/* NETWORK DROPDOWN */}
