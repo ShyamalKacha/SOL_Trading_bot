@@ -9,17 +9,17 @@ import { useWallet } from '../context/WalletContext';
 const Layout = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
-    
+
     // USE WALLET CONTEXT - NO MORE API CALLS HERE!
-    const { 
-        walletAddress, 
-        balances, 
-        selectedNetwork, 
-        solBalance, 
-        usdcBalance, 
+    const {
+        walletAddress,
+        balances,
+        selectedNetwork,
+        solBalance,
+        usdcBalance,
         loading: walletLoading,
         changeNetwork,
-        refreshWalletData 
+        refreshWalletData
     } = useWallet();
 
     // Wallet Modal State
@@ -67,31 +67,31 @@ const Layout = () => {
                                 <div className="d-flex align-items-center gap-3">
                                     <div className="d-none d-lg-flex align-items-center px-3 py-1 rounded-pill gap-3"
                                         style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)' }}>
-                                        
+
                                         {/* NETWORK DROPDOWN */}
                                         <div className="dropdown">
-                                            <button className="btn btn-sm btn-link text-decoration-none p-0 d-flex align-items-center gap-2 dropdown-toggle" 
-                                                    type="button" id="networkDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <button className="btn btn-sm btn-link text-light text-decoration-none p-0 d-flex align-items-center gap-2 dropdown-toggle"
+                                                type="button" id="networkDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                                 <span className={`status-indicator ${selectedNetwork === 'mainnet' ? 'status-active' : selectedNetwork === 'devnet' ? 'status-warning' : 'status-inactive'}`}></span>
-                                                <span className="small font-archivo text-muted">{selectedNetwork.toUpperCase()}</span>
+                                                <span className="small font-archivo text-main fw-bold">{selectedNetwork.toUpperCase()}</span>
                                             </button>
-                                            <ul className="dropdown-menu dropdown-menu-end shadow-lg" 
+                                            <ul className="dropdown-menu dropdown-menu-end shadow-lg"
                                                 style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)' }}>
                                                 <li>
-                                                    <button className={`dropdown-item ${selectedNetwork === 'mainnet' ? 'active' : ''}`} 
-                                                            onClick={() => changeNetwork('mainnet')}>
+                                                    <button className={`dropdown-item text-light ${selectedNetwork === 'mainnet' ? 'active' : ''}`}
+                                                        onClick={() => changeNetwork('mainnet')}>
                                                         <i className="fa-solid fa-circle text-success me-2"></i>Mainnet (Live)
                                                     </button>
                                                 </li>
                                                 <li>
-                                                    <button className={`dropdown-item ${selectedNetwork === 'devnet' ? 'active' : ''}`} 
-                                                            onClick={() => changeNetwork('devnet')}>
+                                                    <button className={`dropdown-item text-light ${selectedNetwork === 'devnet' ? 'active' : ''}`}
+                                                        onClick={() => changeNetwork('devnet')}>
                                                         <i className="fa-solid fa-circle text-warning me-2"></i>Devnet (Test)
                                                     </button>
                                                 </li>
                                                 <li>
-                                                    <button className={`dropdown-item ${selectedNetwork === 'testnet' ? 'active' : ''}`} 
-                                                            onClick={() => changeNetwork('testnet')}>
+                                                    <button className={`dropdown-item text-light ${selectedNetwork === 'testnet' ? 'active' : ''}`}
+                                                        onClick={() => changeNetwork('testnet')}>
                                                         <i className="fa-solid fa-circle text-info me-2"></i>Testnet (Beta)
                                                     </button>
                                                 </li>

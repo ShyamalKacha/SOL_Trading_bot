@@ -35,10 +35,12 @@ const Dashboard = () => {
     const [withdrawLoading, setWithdrawLoading] = useState(false);
 
     // Strategy Config State
-    const [network, setNetwork] = useState('mainnet');
+    // const [network, setNetwork] = useState('mainnet'); // Removed in favor of global selectedNetwork
     const [tradingMode] = useState('automatic'); // Fixed to automatic
     const [selectedToken, setSelectedToken] = useState('So11111111111111111111111111111111111111112');
     const [customToken, setCustomToken] = useState('');
+    const [tokenName, setTokenName] = useState('Solana'); // Track token name
+
 
     // Execution Params State
     const [upPercentage, setUpPercentage] = useState(5);
@@ -160,13 +162,37 @@ const Dashboard = () => {
                 if (data.down_percentage) setDownPercentage(data.down_percentage);
                 if (data.trade_amount) setTradeAmount(data.trade_amount);
                 if (data.parts) setParts(data.parts);
-                if (data.selected_token) setSelectedToken(data.selected_token);
-                if (data.network) setNetwork(data.network);
+                if (data.selected_token) {
+                    setSelectedToken(data.selected_token);
+                    if (data.selected_token !== 'So11111111111111111111111111111111111111112') {
+                        setCustomToken(data.selected_token);
+                    }
+                }
+                // if (data.network) setNetwork(data.network); // No longer setting local network state
             }
         } catch (error) {
             console.error("Error fetching trading status", error);
         }
     };
+
+    // Effect to resolve token name whenever selectedToken changes (e.g. from backend sync)
+    useEffect(() => {
+        const resolveName = async () => {
+            if (selectedToken === 'So11111111111111111111111111111111111111112') {
+                setTokenName('Solana');
+                return;
+            }
+            try {
+                const response = await axios.post('/api/resolve-token', { mint: selectedToken });
+                if (response.data.success) {
+                    setTokenName(response.data.symbol ? `${response.data.name} (${response.data.symbol})` : response.data.name);
+                }
+            } catch (err) {
+                console.error("Auto-resolve token error:", err);
+            }
+        };
+        resolveName();
+    }, [selectedToken]);
 
     // const refreshWalletData = async () => {
     //     setLoadingWallet(true);
@@ -204,6 +230,33 @@ const Dashboard = () => {
             toast.error("Failed to copy", { position: "bottom-right", theme: "dark" });
         });
     };
+
+    const handleResolveToken = async () => {
+        const tokenToResolve = customToken.trim();
+
+        // If empty, revert to default SOL
+        if (!tokenToResolve) {
+            setSelectedToken('So11111111111111111111111111111111111111112');
+            setTokenName('Solana');
+            toast.info("Reverted to Default (SOL)", { position: "bottom-right", theme: "dark" });
+            return;
+        }
+
+        try {
+            const response = await axios.post('/api/resolve-token', { mint: tokenToResolve });
+            if (response.data.success) {
+                setSelectedToken(response.data.mint);
+                setTokenName(response.data.symbol ? `${response.data.name} (${response.data.symbol})` : response.data.name);
+                toast.success("Token Resolved Successfully", { position: "bottom-right", theme: "dark" });
+            } else {
+                toast.error(response.data.message || "Invalid Token", { position: "bottom-right", theme: "dark" });
+            }
+        } catch (error) {
+            console.error("Token resolve error:", error);
+            toast.error("Error resolving token", { position: "bottom-right", theme: "dark" });
+        }
+    };
+
 
     const handleGenerateQR = () => {
         if (!depositAmount || parseFloat(depositAmount) <= 0) {
@@ -289,15 +342,15 @@ const Dashboard = () => {
     };
 
     const startTrading = async () => {
-        let finalToken = selectedToken;
-        if (customToken.trim()) {
-            if (customToken.length >= 32 && customToken.length <= 44) {
-                finalToken = customToken;
-            } else {
-                toast.warning("Invalid Custom Token Address", { position: "bottom-right", theme: "dark" });
-                return;
-            }
+        // Validation: If user typed a custom token but didn't resolve it (selectedToken doesn't match customToken)
+        // We only check this if customToken is NOT empty. If empty, we assume default SOL (which selectedToken should be if initialized or reset)
+        if (customToken.trim() && customToken.trim() !== selectedToken) {
+            toast.warning("Please click ENTER to confirm your custom token address.", { position: "bottom-right", theme: "dark" });
+            return;
         }
+
+        let finalToken = selectedToken;
+
 
         if (validateParams()) {
             setTradingLoading(true);
@@ -308,7 +361,7 @@ const Dashboard = () => {
                     selectedToken: finalToken,
                     tradeAmount: parseFloat(tradeAmount),
                     parts: parseInt(parts),
-                    network,
+                    network: selectedNetwork,
                     tradingMode
                 };
 
@@ -515,23 +568,37 @@ const Dashboard = () => {
                         <div className="glass-body">
                             <div className="mb-3">
                                 <label className="form-label">Environment</label>
-                                <select className="form-select font-archivo" value={network} onChange={e => setNetwork(e.target.value)}>
-                                    <option value="mainnet">Mainnet (Live)</option>
-                                    <option value="devnet">Devnet (Simulation)</option>
-                                    <option value="testnet">Testnet (Beta)</option>
-                                </select>
+                                <div className="input-group">
+                                    <span className="input-group-text"><i className="fa-solid fa-network-wired"></i></span>
+                                    <input type="text" className="form-control font-archivo fw-bold"
+                                        value={selectedNetwork.toUpperCase()} disabled readOnly
+                                        style={{ background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-main)' }} />
+                                </div>
+                                <div className="form-text mt-1">Network selected via Navbar</div>
                             </div>
                             <div className="mb-3">
                                 <label className="form-label">Target Asset</label>
-                                <select className="form-select font-archivo mb-2" value={selectedToken} onChange={e => setSelectedToken(e.target.value)}>
-                                    <option value="So11111111111111111111111111111111111111112">SOL - Native Solana</option>
-                                    <option value="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v">USDC - USD Coin</option>
-                                    <option value="4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R">RAY - Raydium</option>
-                                    <option value="JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN">JUP - Jupiter</option>
-                                </select>
-                                <input type="text" className="form-control font-archivo text-xs"
-                                    placeholder="Or paste Custom Mint Address"
-                                    value={customToken} onChange={e => setCustomToken(e.target.value)} />
+                                <div className="input-group mb-2">
+                                    <input
+                                        type="text"
+                                        className="form-control font-archivo text-xs"
+                                        placeholder="Default: SOL or Enter Mint Address"
+                                        value={customToken}
+                                        onChange={e => setCustomToken(e.target.value)}
+                                    />
+                                    <button className="btn btn-outline-primary font-archivo" type="button" onClick={handleResolveToken}>
+                                        ENTER
+                                    </button>
+                                </div>
+                                <div className="d-flex justify-content-between align-items-center">
+                                    <small className="text-muted">Selected:</small>
+                                    <span className="badge bg-primary bg-opacity-25 text-primary font-archivo">
+                                        {tokenName}
+                                    </span>
+                                </div>
+                                <div className="form-text mt-1 text-xs text-muted" style={{ fontSize: '0.7em', wordBreak: 'break-all' }}>
+                                    {selectedToken}
+                                </div>
                             </div>
                         </div>
                     </div>

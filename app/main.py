@@ -604,6 +604,39 @@ def get_price():
         # On error, return a default price and indicate failure
         return jsonify({"price": 0.0, "success": False, "message": str(e)})
 
+@app.route('/api/resolve-token', methods=['POST'])
+@require_login
+def resolve_token():
+    """Resolve token name from mint address"""
+    data = request.get_json()
+    mint = data.get('mint')
+    
+    if not mint:
+        return jsonify({"success": False, "message": "Mint address required"}), 400
+        
+    # Check if we have it in our local map
+    info = TOKEN_INFO.get(mint)
+    if info:
+        return jsonify({
+            "success": True,
+            "mint": mint,
+            "symbol": info['symbol'],
+            "name": info['name']
+        })
+    
+    # Check if it's a valid mint structure (basic check)
+    if len(mint) < 32 or len(mint) > 44:
+         return jsonify({"success": False, "message": "Invalid mint address format"}), 400
+
+    # If not in local map, we return generic info (or could fetch externally)
+    # For now, we allow it but mark as Unknown
+    return jsonify({
+        "success": True,
+        "mint": mint,
+        "symbol": "UNKNOWN",
+        "name": "Custom Token"
+    })
+
 @app.route('/api/start-trading', methods=['POST'])
 @require_login
 def start_trading():
@@ -646,7 +679,9 @@ def start_trading():
                 
         if sol_balance < (part_amount + MIN_MAINNET_BALANCE):
             return jsonify({
-                "error": f"Insufficient SOL balance. Required per part: {part_amount:.4f} SOL + {MIN_MAINNET_BALANCE} SOL (fees) = {(part_amount + MIN_MAINNET_BALANCE):.4f} SOL. Available: {sol_balance:.4f} SOL."
+                "error": f"Insufficient SOL balance. Total required: {(part_amount + MIN_MAINNET_BALANCE):.5f} SOL\n" 
+                f"(Trade: {part_amount:.4f} SOL + Fees: {MIN_MAINNET_BALANCE:.5f} SOL)\n" 
+                f"Available: {sol_balance:.4f} SOL"
             }), 400
 
     required_fields = ['upPercentage', 'downPercentage', 'selectedToken', 'tradeAmount', 'parts']
