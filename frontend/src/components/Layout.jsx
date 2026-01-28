@@ -4,79 +4,44 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import Logo from "../assets/jumpsol-logo.png"
 
+import { useWallet } from '../context/WalletContext';
 
 const Layout = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
-    const [solBalance, setSolBalance] = useState(0);
-    const [usdcBalance, setUsdcBalance] = useState(0);
+    
+    // USE WALLET CONTEXT - NO MORE API CALLS HERE!
+    const { 
+        walletAddress, 
+        balances, 
+        selectedNetwork, 
+        solBalance, 
+        usdcBalance, 
+        loading: walletLoading,
+        changeNetwork,
+        refreshWalletData 
+    } = useWallet();
 
     // Wallet Modal State
     const [showWalletModal, setShowWalletModal] = useState(false);
-    const [modalWalletData, setModalWalletData] = useState({ address: 'Loading...', balances: [] });
-    const [modalLoading, setModalLoading] = useState(false);
 
     const handleLogout = async () => {
         await logout();
         navigate('/login');
     };
 
-    const updateBalances = async () => {
-        if (!user) return;
-        try {
-            const response = await axios.get('/api/wallet-balance');
-            if (response.data.success) {
-                let sol = 0;
-                let usdc = 0;
-                response.data.balances.forEach(b => {
-                    if (b.token === 'SOL') sol = b.balance;
-                    if (b.token === 'USDC') usdc = b.balance;
-                });
-                setSolBalance(sol);
-                setUsdcBalance(usdc);
-            }
-        } catch (error) {
-            console.error("Failed to update balances", error);
-        }
-    };
-
-    useEffect(() => {
-        if (user) {
-            updateBalances();
-            const interval = setInterval(updateBalances, 30000);
-            return () => clearInterval(interval);
-        }
-    }, [user]);
-
-    const openWalletModal = async (e) => {
+    const openWalletModal = (e) => {
         e.preventDefault();
         setShowWalletModal(true);
-        fetchModalData();
+        // Data is already available from context - no need to fetch!
     };
 
     const closeWalletModal = () => {
         setShowWalletModal(false);
     };
 
-    const fetchModalData = async () => {
-        setModalLoading(true);
-        try {
-            const infoRes = await axios.get('/api/wallet-info');
-            const balanceRes = await axios.get('/api/wallet-balance');
-
-            setModalWalletData({
-                address: infoRes.data.success ? infoRes.data.wallet_address : 'Error',
-                balances: balanceRes.data.success ? balanceRes.data.balances : []
-            });
-        } catch (error) {
-            console.error("Error fetching modal data", error);
-        } finally {
-            setModalLoading(false);
-        }
-    };
-
     const copyModalAddress = () => {
-        navigator.clipboard.writeText(modalWalletData.address);
+        navigator.clipboard.writeText(walletAddress);
     };
 
     return (
@@ -102,10 +67,37 @@ const Layout = () => {
                                 <div className="d-flex align-items-center gap-3">
                                     <div className="d-none d-lg-flex align-items-center px-3 py-1 rounded-pill gap-3"
                                         style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)' }}>
-                                        <div className="d-flex align-items-center gap-2">
-                                            <span className="status-indicator status-active"></span>
-                                            <span className="small font-archivo text-muted">MAINNET</span>
+                                        
+                                        {/* NETWORK DROPDOWN */}
+                                        <div className="dropdown">
+                                            <button className="btn btn-sm btn-link text-decoration-none p-0 d-flex align-items-center gap-2 dropdown-toggle" 
+                                                    type="button" id="networkDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <span className={`status-indicator ${selectedNetwork === 'mainnet' ? 'status-active' : selectedNetwork === 'devnet' ? 'status-warning' : 'status-inactive'}`}></span>
+                                                <span className="small font-archivo text-muted">{selectedNetwork.toUpperCase()}</span>
+                                            </button>
+                                            <ul className="dropdown-menu dropdown-menu-end shadow-lg" 
+                                                style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)' }}>
+                                                <li>
+                                                    <button className={`dropdown-item ${selectedNetwork === 'mainnet' ? 'active' : ''}`} 
+                                                            onClick={() => changeNetwork('mainnet')}>
+                                                        <i className="fa-solid fa-circle text-success me-2"></i>Mainnet (Live)
+                                                    </button>
+                                                </li>
+                                                <li>
+                                                    <button className={`dropdown-item ${selectedNetwork === 'devnet' ? 'active' : ''}`} 
+                                                            onClick={() => changeNetwork('devnet')}>
+                                                        <i className="fa-solid fa-circle text-warning me-2"></i>Devnet (Test)
+                                                    </button>
+                                                </li>
+                                                <li>
+                                                    <button className={`dropdown-item ${selectedNetwork === 'testnet' ? 'active' : ''}`} 
+                                                            onClick={() => changeNetwork('testnet')}>
+                                                        <i className="fa-solid fa-circle text-info me-2"></i>Testnet (Beta)
+                                                    </button>
+                                                </li>
+                                            </ul>
                                         </div>
+
                                         <div className="vr h-50 my-auto text-muted opacity-25"></div>
                                         <div className="d-flex align-items-center gap-2" title="SOL Balance">
                                             <i className="fa-brands fa-solana text-primary small"></i>
@@ -127,11 +119,6 @@ const Layout = () => {
                                         <ul className="dropdown-menu dropdown-menu-end shadow-lg"
                                             style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)' }}>
                                             <li>
-                                                {/* Wallet Modal Trigger would go here, maybe passed as a prop or context? 
-                                                    For now, let's keep it simple or implement a global modal context later.
-                                                    OR just link to a dedicated wallet page if strictly adhering to React router patterns,
-                                                    but the design uses a modal. I'll defer the modal implementation to the Dashboard page or a global one.
-                                                 */}
                                                 <a className="dropdown-item text-light" href="#" onClick={openWalletModal}>
                                                     <i className="fa-solid fa-wallet me-2 text-muted"></i>
                                                     Wallet
@@ -162,7 +149,7 @@ const Layout = () => {
                     <div className="modal fade show" style={{ display: 'block' }} tabIndex="-1" aria-modal="true" role="dialog">
                         <div className="modal-dialog modal-lg modal-dialog-centered">
                             <div className="modal-content glass-panel border-0 mb-0">
-                                <div className="modal-header ">
+                                <div className="modal-header">
                                     <h5 className="modal-title font-archivo">
                                         <i className="fa-solid fa-wallet text-primary me-2"></i>WALLET DETAILS
                                     </h5>
@@ -174,7 +161,7 @@ const Layout = () => {
                                             <div className="mb-4">
                                                 <label className="form-label">Active Wallet Address</label>
                                                 <div className="input-group">
-                                                    <input type="text" className="form-control font-archivo" value={modalWalletData.address} readOnly
+                                                    <input type="text" className="form-control font-archivo" value={walletAddress} readOnly
                                                         style={{ background: 'rgba(0,0,0,0.2)' }} />
                                                     <button className="btn btn-outline-secondary" type="button"
                                                         onClick={copyModalAddress} title="Copy Address">
@@ -198,15 +185,15 @@ const Layout = () => {
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {modalLoading ? (
+                                                            {walletLoading ? (
                                                                 <tr>
                                                                     <td colSpan="3" className="text-center py-4 text-muted">
                                                                         <div className="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
                                                                         <div>Syncing chain data...</div>
                                                                     </td>
                                                                 </tr>
-                                                            ) : modalWalletData.balances.length > 0 ? (
-                                                                modalWalletData.balances.map((b, idx) => (
+                                                            ) : balances.length > 0 ? (
+                                                                balances.map((b, idx) => (
                                                                     <tr key={idx}>
                                                                         <td>{b.token}</td>
                                                                         <td>{b.name || '-'}</td>
@@ -225,7 +212,7 @@ const Layout = () => {
                                 </div>
                                 <div className="modal-footer border-0 p-3">
                                     <button type="button" className="btn btn-primary" onClick={closeWalletModal}>Close</button>
-                                    <button type="button" className="btn btn-primary" onClick={fetchModalData}>
+                                    <button type="button" className="btn btn-primary" onClick={refreshWalletData}>
                                         <i className="fas fa-sync-alt me-2"></i>Refresh Data
                                     </button>
                                 </div>

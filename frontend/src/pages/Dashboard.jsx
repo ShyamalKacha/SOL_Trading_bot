@@ -5,18 +5,26 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useWallet } from '../context/WalletContext';
 
 import TradingGraph from '../components/TradingGraph';
 
 const Dashboard = () => {
     const { user } = useAuth();
 
-
-    // Wallet State
-    const [walletAddress, setWalletAddress] = useState('Connecting to Solana...');
-    const [balances, setBalances] = useState([]);
-    const [loadingWallet, setLoadingWallet] = useState(false);
-    const [walletError, setWalletError] = useState(null);
+    const {
+        walletAddress,
+        balances,
+        selectedNetwork,
+        loading: loadingWallet,
+        error: walletError,
+        refreshWalletData
+    } = useWallet();
+    // // Wallet State
+    // const [walletAddress, setWalletAddress] = useState('Connecting to Solana...');
+    // const [balances, setBalances] = useState([]);
+    // const [loadingWallet, setLoadingWallet] = useState(false);
+    // const [walletError, setWalletError] = useState(null);
 
     // Funding State
     const [depositAmount, setDepositAmount] = useState('');
@@ -57,7 +65,7 @@ const Dashboard = () => {
     const [loadingOrders, setLoadingOrders] = useState(false);
 
     // Clock
-
+    const statusIntervalRef = useRef(null);
 
     // Initial Data Load
     // Initial Data Load
@@ -65,20 +73,37 @@ const Dashboard = () => {
         refreshWalletData();
         fetchOrders(1);
 
-        // Start polling trading status
-        const statusInterval = setInterval(fetchTradingStatus, 2000);
+        // Check trading status ONCE to see if bot is already running
+        fetchTradingStatus();
 
-        // Poll orders occasionally (every 10s) to keep list fresh
-        const ordersInterval = setInterval(() => {
-            // We can check if we should refresh, but simply refreshing page 1 is safe enough for updates
-            // Or we just rely on manual refresh / user interaction
-        }, 10000);
-
+        // Cleanup on unmount
         return () => {
-            clearInterval(statusInterval);
-            clearInterval(ordersInterval);
+            if (statusIntervalRef.current) {
+                clearInterval(statusIntervalRef.current);
+            }
         };
     }, []);
+
+    // Start/Stop polling based on trading state
+    useEffect(() => {
+        // Clear any existing interval first
+        if (statusIntervalRef.current) {
+            clearInterval(statusIntervalRef.current);
+            statusIntervalRef.current = null;
+        }
+
+        // Only start polling if bot is running
+        if (isTrading) {
+            statusIntervalRef.current = setInterval(fetchTradingStatus, 2000);
+        }
+
+        // Cleanup
+        return () => {
+            if (statusIntervalRef.current) {
+                clearInterval(statusIntervalRef.current);
+            }
+        };
+    }, [isTrading]);
 
     const fetchOrders = async (page = 1) => {
         setLoadingOrders(true);
@@ -143,33 +168,33 @@ const Dashboard = () => {
         }
     };
 
-    const refreshWalletData = async () => {
-        setLoadingWallet(true);
-        setWalletError(null);
-        try {
-            // Get Wallet Info
-            const infoResponse = await axios.get('/api/wallet-info');
-            if (infoResponse.data.success) {
-                setWalletAddress(infoResponse.data.wallet_address);
-            } else {
-                setWalletError(infoResponse.data.message);
-                setWalletAddress('Error loading wallet');
-            }
+    // const refreshWalletData = async () => {
+    //     setLoadingWallet(true);
+    //     setWalletError(null);
+    //     try {
+    //         // Get Wallet Info
+    //         const infoResponse = await axios.get('/api/wallet-info');
+    //         if (infoResponse.data.success) {
+    //             setWalletAddress(infoResponse.data.wallet_address);
+    //         } else {
+    //             setWalletError(infoResponse.data.message);
+    //             setWalletAddress('Error loading wallet');
+    //         }
 
-            // Get Balances
-            const balanceResponse = await axios.get('/api/wallet-balance');
-            if (balanceResponse.data.success) {
-                setBalances(balanceResponse.data.balances);
-            }
-        } catch (error) {
-            console.error("Wallet refresh error", error);
-            setWalletError("Failed to sync chain data");
-            setWalletAddress('Connection Failed');
-        } finally {
-            setLoadingWallet(false);
-            toast.success("Chain data synchronized", { position: "bottom-right", theme: "dark" });
-        }
-    };
+    //         // Get Balances
+    //         const balanceResponse = await axios.get('/api/wallet-balance');
+    //         if (balanceResponse.data.success) {
+    //             setBalances(balanceResponse.data.balances);
+    //         }
+    //     } catch (error) {
+    //         console.error("Wallet refresh error", error);
+    //         setWalletError("Failed to sync chain data");
+    //         setWalletAddress('Connection Failed');
+    //     } finally {
+    //         setLoadingWallet(false);
+    //         toast.success("Chain data synchronized", { position: "bottom-right", theme: "dark" });
+    //     }
+    // };
 
     const copyToClipboard = (text, label) => {
         if (!text) return;
