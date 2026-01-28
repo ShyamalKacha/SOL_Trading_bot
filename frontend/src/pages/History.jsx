@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { Link } from 'react-router-dom';
 
 const History = () => {
     // State
@@ -54,7 +55,9 @@ const History = () => {
             {/* Header */}
             <div className="row align-items-end mb-4">
                 <div className="col-md-8">
-                    <h6 className="text-primary tracking-wide text-uppercase mb-2"><i className="fas fa-history me-2"></i>Archive</h6>
+                    <Link to="/" className="btn btn-sm btn-outline-primary mb-2 rounded-pill px-3">
+                        <i className="fas fa-arrow-left me-2"></i>Back to Dashboard
+                    </Link>
                     <h1 className="display-5 fw-bold mb-0">TRADE <span className="text-primary-gradient">HISTORY</span></h1>
                     <p className="text-muted mt-2 mb-0">Historical performance analysis and trade logs.</p>
                 </div>
