@@ -10,13 +10,14 @@ A comprehensive multi-user Solana trading bot with a **modern React frontend**, 
 ## 🚀 Features
 
 - **Modern UI**: specialized dark theme built with React & Bootstrap.
-- **Modern UI**: specialized dark theme built with React & Bootstrap.
 - **Multi-User Support**: Individual wallet and trading instances for every user.
 - **Real-Time Dashboard**: Live price monitoring, wallet balances, and active trade status.
+- **Interactive Trading Graph**: Visual representation of price movements and trade execution points.
 - **Automated Trading**: Advanced ladder trading algorithm with configurable strategies (Take Profit / Stop Loss).
 - **Wallet Integration**:
     - Generates unique Solana wallets for users.
-    - Supports SOL and SPL token deposits/withdrawals.
+    - Supports SOL and SPL token deposits.
+    - **Withdrawal System**: Securely withdraw funds with fee estimation and target asset selection.
     - QR Code generation for easy funding.
 - **Security**:
     - OTP Email Verification for registration.
@@ -111,8 +112,13 @@ FEE_WALLET_ADDRESS=your_fee_wallet_address
 
 1.  **Register/Login**: Create an account and verify via Email OTP.
 2.  **Dashboard**:
-    *   **Wallet Operations**: View your generated address. Send SOL to this address to fund the bot.
-    *   **Strategy Config**: Select network (Mainnet/Devnet), target token (e.g., SOL, USDC, JUP), and trade execution parameters.
-    *   **Live Monitor**: Watch real-time P&L changes and active status.
+    *   **Network Selection**: Use the dropdown in the **Navbar** to switch between Mainnet and Devnet globally.
+    *   **Wallet Operations**:
+        *   **Deposit**: View your generated address or QR code to fund your wallet.
+        *   **Withdraw**: Use the "Withdraw Funds" modal to send assets to external wallets with real-time fee estimation.
+    *   **Strategy Config**: Configure target token (e.g., SOL, USDC), trade volume, and execution parameters (TP/SL).
+    *   **Visualizations**:
+        *   **Live Monitor**: Watch real-time P&L changes and active status.
+        *   **Trading Graph**: Analyze price trends and trade execution markers.
 3.  **Start Trading**: Click "INITIATE SEQUENCE" to begin the automated ladder strategy.
 4.  **History**: View all past trades in the "Trade History" section.
