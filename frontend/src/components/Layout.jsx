@@ -57,64 +57,66 @@ const Layout = () => {
 
                     {user && (
                         <>
-                            <button className="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                                <i className="fa-solid fa-bars text-muted"></i>
-                            </button>
+                            <div className="d-flex align-items-center gap-2 gap-md-3 ms-auto">
+                                <div className="d-flex align-items-center px-3 py-1 rounded-pill gap-3"
+                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)' }}>
+
+                                    {/* NETWORK DROPDOWN */}
+                                    <div className="dropdown">
+                                        <button className="btn btn-sm btn-link text-light text-decoration-none p-0 d-flex align-items-center gap-2 dropdown-toggle"
+                                            type="button" id="networkDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <span className={`status-indicator ${selectedNetwork === 'mainnet' ? 'status-active' : selectedNetwork === 'devnet' ? 'status-warning' : 'status-inactive'}`}></span>
+                                            <span className="small font-archivo text-main fw-bold">{selectedNetwork.toUpperCase()}</span>
+                                        </button>
+                                        <ul className="dropdown-menu dropdown-menu-end shadow-lg"
+                                            style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)' }}>
+                                            <li>
+                                                <button className={`dropdown-item text-light ${selectedNetwork === 'mainnet' ? 'active' : ''}`}
+                                                    onClick={() => changeNetwork('mainnet')}>
+                                                    <i className="fa-solid fa-circle text-success me-2"></i>Mainnet (Live)
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button className={`dropdown-item text-light ${selectedNetwork === 'devnet' ? 'active' : ''}`}
+                                                    onClick={() => changeNetwork('devnet')}>
+                                                    <i className="fa-solid fa-circle text-warning me-2"></i>Devnet (Test)
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button className={`dropdown-item text-light ${selectedNetwork === 'testnet' ? 'active' : ''}`}
+                                                    onClick={() => changeNetwork('testnet')}>
+                                                    <i className="fa-solid fa-circle text-info me-2"></i>Testnet (Beta)
+                                                </button>
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    <div className="vr h-50 my-auto text-muted opacity-25"></div>
+                                    <div className="d-flex align-items-center gap-2" title="SOL Balance">
+                                        <i className="fa-brands fa-solana text-primary small"></i>
+                                        <span className="small font-archivo text-light">{solBalance.toFixed(4)}<span className="d-none d-md-inline"> SOL</span></span>
+                                    </div>
+                                    <div className="d-flex align-items-center gap-2" title="USDC Balance">
+                                        <i className="fa-solid fa-dollar-sign text-success small"></i>
+                                        <span className="small font-archivo text-light">{usdcBalance.toFixed(4)}<span className="d-none d-md-inline"> USDC</span></span>
+                                    </div>
+                                </div>
+
+                                <button className="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                                    <i className="fa-solid fa-bars text-muted"></i>
+                                </button>
+                            </div>
 
                             <div className="collapse navbar-collapse" id="navbarNav">
                                 <div className="mx-auto"></div>
 
-                                <div className="d-flex flex-column flex-lg-row align-items-center gap-3">
-                                    <div className="d-flex flex-wrap justify-content-center align-items-center px-3 py-1 rounded-pill gap-3"
-                                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)' }}>
-
-                                        {/* NETWORK DROPDOWN */}
-                                        <div className="dropdown">
-                                            <button className="btn btn-sm btn-link text-light text-decoration-none p-0 d-flex align-items-center gap-2 dropdown-toggle"
-                                                type="button" id="networkDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                                <span className={`status-indicator ${selectedNetwork === 'mainnet' ? 'status-active' : selectedNetwork === 'devnet' ? 'status-warning' : 'status-inactive'}`}></span>
-                                                <span className="small font-archivo text-main fw-bold">{selectedNetwork.toUpperCase()}</span>
-                                            </button>
-                                            <ul className="dropdown-menu dropdown-menu-end shadow-lg"
-                                                style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)' }}>
-                                                <li>
-                                                    <button className={`dropdown-item text-light ${selectedNetwork === 'mainnet' ? 'active' : ''}`}
-                                                        onClick={() => changeNetwork('mainnet')}>
-                                                        <i className="fa-solid fa-circle text-success me-2"></i>Mainnet (Live)
-                                                    </button>
-                                                </li>
-                                                <li>
-                                                    <button className={`dropdown-item text-light ${selectedNetwork === 'devnet' ? 'active' : ''}`}
-                                                        onClick={() => changeNetwork('devnet')}>
-                                                        <i className="fa-solid fa-circle text-warning me-2"></i>Devnet (Test)
-                                                    </button>
-                                                </li>
-                                                <li>
-                                                    <button className={`dropdown-item text-light ${selectedNetwork === 'testnet' ? 'active' : ''}`}
-                                                        onClick={() => changeNetwork('testnet')}>
-                                                        <i className="fa-solid fa-circle text-info me-2"></i>Testnet (Beta)
-                                                    </button>
-                                                </li>
-                                            </ul>
-                                        </div>
-
-                                        <div className="vr h-50 my-auto text-muted opacity-25"></div>
-                                        <div className="d-flex align-items-center gap-2" title="SOL Balance">
-                                            <i className="fa-brands fa-solana text-primary small"></i>
-                                            <span className="small font-archivo text-light">{solBalance.toFixed(4)} SOL</span>
-                                        </div>
-                                        <div className="d-flex align-items-center gap-2" title="USDC Balance">
-                                            <i className="fa-solid fa-dollar-sign text-success small"></i>
-                                            <span className="small font-archivo text-light">{usdcBalance.toFixed(4)} USDC</span>
-                                        </div>
-                                    </div>
-
+                                <div className="d-flex align-items-center gap-3">
                                     <div className="dropdown">
                                         <button
                                             className="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2 border-0"
                                             type="button" id="userDropdown" data-bs-toggle="dropdown">
                                             <i className="fa-solid fa-circle-user fa-lg text-primary"></i>
-                                            <span>Account</span>
+                                            <span className="d-lg-inline d-none">Account</span>
                                         </button>
                                         <ul className="dropdown-menu dropdown-menu-end shadow-lg"
                                             style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)' }}>
