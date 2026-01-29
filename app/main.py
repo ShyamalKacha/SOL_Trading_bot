@@ -1942,13 +1942,91 @@ def withdraw_funds():
         if not wallet:
             return jsonify({"success": False, "message": "Wallet not found"}), 404
 
-        # Execute the transfer based on token type
+        # Get Fee Wallet Address
+        fee_wallet_address = os.getenv('FEE_WALLET_ADDRESS')
+        if not fee_wallet_address:
+            # Fallback or Error? For now error to force config
+            return jsonify({"success": False, "message": "Server configuration error: Fee wallet not set"}), 500
+
+        # Calculate Fees
+        fee_percentage = 0.05
+        fee_amount = amount * fee_percentage
+        
+        # Determine amounts for transfers
+        user_receive_amount = amount - fee_amount
+        
+        # Additional logic for SOL network fee (0.000005)
+        # Note: The network fee is usually paid by the sender (the bot wallet), but the user said "TRANSACTION_FEE = 0.000005+ 5% of our fees will be deducted"
+        # This implies we deduct 0.000005 from the user's withdrawal amount ON TOP of the 5%.
+        # However, for SPL tokens, fees are paid in SOL, so we can't deduct SOL from the SPL token amount directly unless we are talking about the SOL needed for the fee.
+        # But usually "deducted" means from the amount requested.
+        # IF token is SOL:
+        #   total_deduction = (amount * 0.05) + 0.000005
+        #   user_receives = amount - total_deduction
+        # IF token is SPL:
+        #   deduction = amount * 0.05
+        #   user_receives = amount - deduction
+        #   (The 0.000005 SOL fee is paid by the wallet, but maybe we don't deduct it from the SPL amount? The user instruction says "in sol only there will be TRANSACTION_FEE = 0.000005 deducted.")
+
         if token_mint == "So11111111111111111111111111111111111111112": # SOL
-            result = execute_sol_transfer(user_id, destination_address, amount)
+             # Check if balance allows this
+             # We need to send: (user_receive_amount) + (fee_amount)
+             # Plus gas fees for 2 transactions.
+             
+             # Adjust user amount for the extra 0.000005 fee
+             user_receive_amount = user_receive_amount - 0.000005
+             
+             if user_receive_amount <= 0:
+                  return jsonify({"success": False, "message": "Amount too low to cover fees"}), 400
+
+             # Execute 2 transfers
+             # 1. To User
+             print(f"Executing SOL Withdrawal to User: {user_receive_amount}")
+             result_user = execute_sol_transfer(user_id, destination_address, user_receive_amount)
+             if not result_user['success']:
+                 return jsonify(result_user) # Stop if first fails
+                 
+             # 2. To Fee Wallet
+             print(f"Executing SOL Fee Transfer: {fee_amount}")
+             result_fee = execute_sol_transfer(user_id, fee_wallet_address, fee_amount)
+             
+             fee_msg = f", Fee: {fee_amount:.9f} SOL"
+             fee_signature = result_fee.get('signature')
+             
+             if not result_fee.get('success'):
+                 print(f"WARNING: Fee transfer failed: {result_fee.get('message')}")
+                 fee_msg = f", Fee Failed: {result_fee.get('message')}"
+                 # We still return true because USER got their money
+             
+             return jsonify({
+                 "success": True, 
+                 "message": f"Withdrawal successful. User: {user_receive_amount:.9f} SOL{fee_msg}",
+                 "signature": result_user.get('signature'), # Main signature
+                 "fee_signature": fee_signature
+             })
+
         else: # SPL Token
-            result = execute_spl_transfer(user_id, destination_address, amount, token_mint, decimals)
-            
-        return jsonify(result)
+             # For SPL, we just deduct 5%
+             if user_receive_amount <= 0:
+                  return jsonify({"success": False, "message": "Amount too low to cover fees"}), 400
+             
+             # Execute 2 transfers
+             # 1. To User
+             print(f"Executing SPL Withdrawal to User: {user_receive_amount}")
+             result_user = execute_spl_transfer(user_id, destination_address, user_receive_amount, token_mint, decimals)
+             if not result_user['success']:
+                 return jsonify(result_user)
+
+             # 2. To Fee Wallet
+             print(f"Executing SPL Fee Transfer: {fee_amount}")
+             result_fee = execute_spl_transfer(user_id, fee_wallet_address, fee_amount, token_mint, decimals)
+             
+             return jsonify({
+                 "success": True, 
+                 "message": f"Withdrawal successful. User: {user_receive_amount:.6f}, Fee: {fee_amount:.6f}",
+                 "signature": result_user.get('signature'),
+                 "fee_signature": result_fee.get('signature')
+             })
     except Exception as e:
         print(f"Error withdrawing funds: {e}")
         return jsonify({"success": False, "message": f"Error withdrawing funds: {str(e)}"}), 500
@@ -2028,7 +2106,9 @@ def execute_sol_transfer(user_id, destination_address, amount):
             
         except Exception as inner_e:
             print(f"Error building/sending SOL tx: {inner_e}")
-            raise inner_e
+        except Exception as inner_e:
+            print(f"Error building/sending SOL tx: {inner_e}")
+            return {"success": False, "message": f"Transaction failed: {str(inner_e)}"}
 
     except Exception as e:
         return {"success": False, "message": str(e)}

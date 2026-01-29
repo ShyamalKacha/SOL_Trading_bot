@@ -66,6 +66,10 @@ const Dashboard = () => {
     const [totalPages, setTotalPages] = useState(1);
     const [loadingOrders, setLoadingOrders] = useState(false);
 
+    // Modal State
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [confirmData, setConfirmData] = useState(null);
+
     // Clock
     const statusIntervalRef = useRef(null);
 
@@ -284,11 +288,16 @@ const Dashboard = () => {
         if (!token) return;
 
         const SOL_MINT = "So11111111111111111111111111111111111111112";
-        const TRANSACTION_FEE = 0.000005;
+        // Reserve enough for:
+        // 1. Transaction Fee for User Transfer (~0.000005)
+        // 2. Transaction Fee for Fee Transfer (~0.000005)
+        // 3. The 0.000005 fee deducted from user amount (part of the logic)
+        // So safe buffer is slightly higher
+        const RESERVED_BUFFER = 0.000015; // 3x standard fee just to be safe
 
         let max = token.balance;
-        if (token.mint === SOL_MINT && max > TRANSACTION_FEE) {
-            max -= TRANSACTION_FEE;
+        if (token.mint === SOL_MINT && max > RESERVED_BUFFER) {
+            max -= RESERVED_BUFFER;
         }
 
         setWithdrawAmount(Math.max(0, max).toFixed(6));
@@ -315,13 +324,50 @@ const Dashboard = () => {
             return;
         }
 
+        // --- FEE CALCULATION & CONFIRMATION ---
+        const amount = parseFloat(withdrawAmount);
+        const feePercentage = 0.05;
+        const feeAmount = amount * feePercentage;
+        let receiveAmount = amount - feeAmount;
+        let feeDisplay = `${feeAmount.toFixed(6)}`;
+        const SOL_MINT = "So11111111111111111111111111111111111111112";
+        const isSol = withdrawToken === SOL_MINT;
+
+        if (isSol) {
+            // For SOL: Deduct extra 0.000005
+            const extraFee = 0.000005;
+            receiveAmount -= extraFee;
+            feeDisplay = `${feeAmount.toFixed(6)} + ${extraFee.toFixed(6)}`;
+        }
+
+        if (receiveAmount <= 0) {
+            toast.error("Amount must be greater than fees", { position: "bottom-right", theme: "dark" });
+            return;
+        }
+
+        // Set Confirmation Data and Show Modal
+        setConfirmData({
+            receiveAmount: receiveAmount.toFixed(6),
+            totalAmount: amount.toFixed(6),
+            feeDisplay: feeDisplay,
+            token: token.token,
+            isSol: isSol,
+            tokenDecimals: token.decimals
+        });
+        setShowConfirmModal(true);
+    };
+
+    const finalizeWithdraw = async () => {
+        // Find selected token again to be safe, or use data from confirmData if preferred
+        // We'll rely on state as minimal time passed
+
         setWithdrawLoading(true);
         try {
             const response = await axios.post('/api/withdraw-funds', {
                 destination_address: withdrawAddress,
                 amount: parseFloat(withdrawAmount),
                 token_mint: withdrawToken,
-                decimals: token.decimals
+                decimals: confirmData.tokenDecimals
             });
 
             if (response.data.success) {
@@ -329,6 +375,7 @@ const Dashboard = () => {
                 setWithdrawAmount('');
                 setWithdrawAddress('');
                 refreshWalletData(); // Refresh balance
+                setShowConfirmModal(false); // Close modal
             } else {
                 toast.error(response.data.message || "Withdrawal failed", { position: "bottom-right", theme: "dark" });
             }
@@ -752,14 +799,6 @@ const Dashboard = () => {
                         <i className="fa-solid fa-list-ul text-white"></i>
                         <h5 className="font-archivo tracking-tight mb-0">ORDER LOG</h5>
                     </div>
-                    <div className="d-flex gap-2">
-                        <button className="btn btn-sm btn-outline-secondary" onClick={() => fetchOrders(currentPage)} disabled={loadingOrders} title="Refresh Log">
-                            <i className={`fas fa-sync-alt ${loadingOrders ? 'fa-spin' : ''}`}></i>
-                        </button>
-                        <Link to="/trade-history" className="btn btn-sm btn-outline-info font-archivo">
-                            <i className="fa-solid fa-clock-rotate-left me-1"></i> History
-                        </Link>
-                    </div>
                 </div>
                 <div className="glass-body p-0">
                     {/* PC View - Table */}
@@ -798,7 +837,7 @@ const Dashboard = () => {
                                 ) : (
                                     <tr>
                                         <td colSpan="8" className="text-center py-5 text-muted font-archivo">
-                                            NO TRANSACTIONS RECORDED
+                                            No orders found
                                         </td>
                                     </tr>
                                 )}
@@ -853,6 +892,54 @@ const Dashboard = () => {
                     )}
                 </div>
             </div>
+
+            {/* Confirmation Modal */}
+            {showConfirmModal && (
+                <div className="modal-backdrop-custom d-flex align-items-center justify-content-center"
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        zIndex: 1050
+                    }}>
+                    <div className="card glass-panel border-0 p-4" style={{ maxWidth: '400px', width: '90%', background: '#1a1a1a', border: '1px solid #333', borderRadius: '12px' }}>
+                        <div className="text-center mb-4">
+                            <i className="fas fa-exclamation-circle text-warning fa-3x mb-3"></i>
+                            <h4 className="font-archivo fw-bold text-white">Confirm Withdrawal</h4>
+                        </div>
+
+                        <div className="mb-4">
+                            <div className="d-flex justify-content-between mb-2">
+                                <span className="text-muted">Receive Amount:</span>
+                                <span className="text-white fw-bold">{confirmData?.receiveAmount} {confirmData?.token}</span>
+                            </div>
+                            <div className="d-flex justify-content-between mb-2">
+                                <span className="text-muted">Fee Deducted:</span>
+                                <span className="text-danger">{confirmData?.feeDisplay} {confirmData?.token}</span>
+                            </div>
+                            <div className="d-flex justify-content-between mt-3 pt-3 border-top border-secondary">
+                                <span className="text-muted">Total Withdraw:</span>
+                                <span className="text-white fw-bold">{confirmData?.totalAmount} {confirmData?.token}</span>
+                            </div>
+                            <div className="mt-2 text-center">
+                                <small className="text-muted" style={{ fontSize: '0.8rem' }}>(Includes 5% Service Fee {confirmData?.isSol ? '+ Network Fee' : ''})</small>
+                            </div>
+                        </div>
+
+                        <div className="d-grid gap-2 d-flex justify-content-center">
+                            <button className="btn btn-outline-secondary px-4 py-2" onClick={() => setShowConfirmModal(false)}>
+                                Cancel
+                            </button>
+                            <button className="btn btn-primary px-4 py-2" onClick={finalizeWithdraw} disabled={withdrawLoading}>
+                                {withdrawLoading ? <span className="spinner-border spinner-border-sm me-2"></span> : 'Confirm'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
