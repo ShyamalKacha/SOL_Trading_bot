@@ -677,12 +677,45 @@ def start_trading():
                 sol_balance = token['balance']
                 break
                 
-        if sol_balance < (part_amount + MIN_MAINNET_BALANCE):
-            return jsonify({
-                "error": f"Insufficient SOL balance. Total required: {(part_amount + MIN_MAINNET_BALANCE):.5f} SOL\n" 
-                f"(Trade: {part_amount:.4f} SOL + Fees: {MIN_MAINNET_BALANCE:.5f} SOL)\n" 
-                f"Available: {sol_balance:.4f} SOL"
-            }), 400
+        if sol_balance < MIN_MAINNET_BALANCE:
+             return jsonify({
+                 "error": f"Insufficient SOL balance for fees. Required: {MIN_MAINNET_BALANCE:.5f} SOL, Available: {sol_balance:.5f} SOL"
+             }), 400
+
+        # Fetch current SOL price to convert USD trade amount to SOL
+        # SOL mint: So11111111111111111111111111111111111111112
+        # USDC mint: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+        sol_price_response = get_jupiter_price_direct(
+            "So11111111111111111111111111111111111111112", 
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", 
+            1000000000 # 1 SOL in lamports
+        )
+        
+        sol_price = 0
+        if sol_price_response["success"]:
+            sol_price = sol_price_response["price"]
+        else:
+             # Fallback if price fetch fails - we can't accurately check balance
+             # but we shouldn't block trading if we can't get price, maybe warn?
+             # For safety, let's assume a safe fallback or let it proceed with a warning logic
+             # But here, let's try to be safe. If we can't get price, we can't check
+             print(f"Failed to get SOL price for balance check: {sol_price_response.get('message')}")
+             # Let's assume a conservative price or just proceed and let the trade fail later if insufficient
+             # For now, we will skip the enhanced check if price fails to load
+             sol_price = 0
+
+        if sol_price > 0:
+            # Convert part_amount (USD) to SOL
+            required_sol_for_trade = part_amount / sol_price
+            total_required_sol = required_sol_for_trade + MIN_MAINNET_BALANCE
+            
+            if sol_balance < total_required_sol:
+                return jsonify({
+                    "error": f"Insufficient SOL balance.\n"
+                    f"Required: {total_required_sol:.5f} SOL (${part_amount:.2f} + fees)\n"
+                    f"Available: {sol_balance:.5f} SOL (~${(sol_balance * sol_price):.2f})\n"
+                    f"(Current SOL Price: ${sol_price:.2f})"
+                }), 400
 
     required_fields = ['upPercentage', 'downPercentage', 'selectedToken', 'tradeAmount', 'parts']
     for field in required_fields:

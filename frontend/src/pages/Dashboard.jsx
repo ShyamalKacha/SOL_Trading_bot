@@ -408,7 +408,7 @@ const Dashboard = () => {
                         <i className="fa-solid fa-wallet text-primary"></i>
                         <h5 className="font-archivo tracking-tight">WALLET OPERATIONS</h5>
                     </div>
-                    <button className="btn btn-sm btn-outline-secondary" onClick={()=>refreshWalletData()} disabled={loadingWallet} title="Sync Chain Data">
+                    <button className="btn btn-sm btn-outline-secondary" onClick={() => refreshWalletData()} disabled={loadingWallet} title="Sync Chain Data">
                         <i className={`fas fa-sync-alt me-1 ${loadingWallet ? 'fa-spin' : ''}`}></i> SYNC
                     </button>
                 </div>
@@ -448,7 +448,7 @@ const Dashboard = () => {
                                                 </tr>
                                             </thead>
                                             <tbody className="font-archivo">
-                                                
+
                                                 {balances.map((b, idx) => (
                                                     <tr key={idx}>
                                                         <td>
@@ -786,11 +786,11 @@ const Dashboard = () => {
                                             <td>{new Date(tx.timestamp).toLocaleString()}</td>
                                             <td><span className={`badge ${tx.network === 'mainnet' ? 'bg-primary' : 'bg-warning text-dark'}`}>{tx.network}</span></td>
                                             <td><span className={`badge ${tx.action === 'buy' ? 'bg-success' : 'bg-danger'}`}>{tx.action.toUpperCase()}</span></td>
-                                            <td>{tx.amount ? `$${tx.amount.toFixed(2)}` : '-'}</td>
+                                            <td>{tx.amount ? `$${tx.amount.toFixed(4)}` : '-'}</td>
                                             <td>{tx.token_symbol}</td>
                                             <td>${typeof tx.price === 'number' ? tx.price.toFixed(4) : tx.price}</td>
                                             <td className={tx.pnl >= 0 ? 'text-success' : 'text-danger'}>
-                                                {tx.pnl !== null ? (tx.pnl >= 0 ? '+' : '') + '$' + Math.abs(tx.pnl).toFixed(4) : '-'}
+                                                {tx.pnl !== null ? (tx.pnl >= 0 ? '+' : '-') + '$' + Math.abs(tx.pnl).toFixed(4) : '-'}
                                             </td>
                                             <td><span className="badge bg-secondary">{tx.status ? tx.status.toUpperCase() : 'COMPLETED'}</span></td>
                                         </tr>
@@ -823,11 +823,11 @@ const Dashboard = () => {
                                             <span className="fw-bold">{tx.token_symbol}</span>
                                         </div>
                                         <div className={tx.pnl >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold'}>
-                                            {tx.pnl !== null ? (tx.pnl >= 0 ? '+' : '') + '$' + Math.abs(tx.pnl).toFixed(4) : '-'}
+                                            {tx.pnl !== null ? (tx.pnl >= 0 ? '+' : '-') + '$' + Math.abs(tx.pnl).toFixed(4) : '-'}
                                         </div>
                                     </div>
                                     <div className="d-flex justify-content-between small text-muted">
-                                        <span>Amt: {tx.amount ? `$${tx.amount.toFixed(2)}` : '-'}</span>
+                                        <span>Amt: {tx.amount ? `$${tx.amount.toFixed(4)}` : '-'}</span>
                                         <span>Price: ${typeof tx.price === 'number' ? tx.price.toFixed(4) : tx.price}</span>
                                     </div>
                                 </div>
