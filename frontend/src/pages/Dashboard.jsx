@@ -624,6 +624,8 @@ const Dashboard = () => {
                                 </div>
                                 <div className="form-text mt-1">Network selected via Navbar</div>
                             </div>
+                            {/* Target Asset - Commented out for now, defaulting to SOL */}
+                            {/* 
                             <div className="mb-3">
                                 <label className="form-label">Target Asset</label>
                                 <div className="input-group mb-2">
@@ -648,6 +650,7 @@ const Dashboard = () => {
                                     {selectedToken}
                                 </div>
                             </div>
+                            */}
                         </div>
                     </div>
                 </div>
@@ -925,7 +928,7 @@ const Dashboard = () => {
                                 <span className="text-white fw-bold">{confirmData?.totalAmount} {confirmData?.token}</span>
                             </div>
                             <div className="mt-2 text-center">
-                                <small className="text-muted" style={{ fontSize: '0.8rem' }}>(Includes 5% Service Fee {confirmData?.isSol ? '+ Network Fee' : ''})</small>
+                                {/* <small className="text-muted" style={{ fontSize: '0.8rem' }}>(Includes 5% Service Fee {confirmData?.isSol ? '+ Network Fee' : ''})</small> */}
                             </div>
                         </div>
 
