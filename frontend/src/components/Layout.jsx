@@ -68,8 +68,7 @@ const Layout = () => {
                                             <span className={`status-indicator ${selectedNetwork === 'mainnet' ? 'status-active' : selectedNetwork === 'devnet' ? 'status-warning' : 'status-inactive'}`}></span>
                                             <span className="small font-archivo text-main fw-bold">{selectedNetwork.toUpperCase()}</span>
                                         </button>
-                                        <ul className="dropdown-menu dropdown-menu-end shadow-lg"
-                                            style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)' }}>
+                                        <ul className="dropdown-menu dropdown-menu-end shadow-lg">
                                             <li>
                                                 <button className={`dropdown-item text-light ${selectedNetwork === 'mainnet' ? 'active' : ''}`}
                                                     onClick={() => changeNetwork('mainnet')}>
@@ -118,8 +117,7 @@ const Layout = () => {
                                             <i className="fa-solid fa-circle-user fa-lg text-primary"></i>
                                             <span className="d-lg-inline d-none">Account</span>
                                         </button>
-                                        <ul className="dropdown-menu dropdown-menu-end shadow-lg"
-                                            style={{ background: 'var(--bg-surface)', border: '1px solid var(--glass-border)' }}>
+                                        <ul className="dropdown-menu dropdown-menu-end shadow-lg">
                                             <li>
                                                 <a className="dropdown-item text-light" href="#" onClick={openWalletModal}>
                                                     <i className="fa-solid fa-wallet me-2 text-muted"></i>

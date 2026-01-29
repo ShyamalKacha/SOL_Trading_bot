@@ -536,7 +536,7 @@ const Dashboard = () => {
                 <div className="glass-body border-top border-secondary border-opacity-10">
                     <div className="row g-4">
                         {/* Deposit */}
-                        <div className="col-md-6 border-end border-secondary border-opacity-10">
+                        <div className="col-md-6 border-end border-secondary border-opacity-10 d-flex flex-column">
 
                             <div className="mb-3">
                                 <label className="form-label">Deposit SOL</label>
@@ -547,16 +547,7 @@ const Dashboard = () => {
                                 </div>
                             </div>
 
-                            {showQR && (
-                                <div className="d-flex flex-column align-items-center mb-3">
-                                    <div className="bg-black p-3 rounded mb-2">
-                                        <QRCodeSVG fgColor="white" bgColor="black" value={getSolanaPayUrl()} size={150} />
-                                    </div>
-                                    <div className="text-center text-muted small">Scan with your Solana Wallet</div>
-                                </div>
-                            )}
-
-                            <button className="btn btn-success w-100" onClick={handleGenerateQR}>
+                            <button className="btn btn-success w-100 mt-auto" onClick={handleGenerateQR}>
                                 <i className="fas fa-qrcode me-2"></i>Generate QR Code
                             </button>
                         </div>
@@ -898,20 +889,11 @@ const Dashboard = () => {
 
             {/* Confirmation Modal */}
             {showConfirmModal && (
-                <div className="modal-backdrop-custom d-flex align-items-center justify-content-center"
-                    style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        backgroundColor: 'rgba(0,0,0,0.8)',
-                        zIndex: 1050
-                    }}>
-                    <div className="card glass-panel border-0 p-4" style={{ maxWidth: '400px', width: '90%', background: '#1a1a1a', border: '1px solid #333', borderRadius: '12px' }}>
+                <div className="modal-backdrop-custom d-flex align-items-center justify-content-center">
+                    <div className="card glass-panel modal-card-custom p-4">
                         <div className="text-center mb-4">
-                            <i className="fas fa-exclamation-circle text-warning fa-3x mb-3"></i>
-                            <h4 className="font-archivo fw-bold text-white">Confirm Withdrawal</h4>
+                            <i className="fas fa-exclamation-circle text-primary fa-3x mb-3"></i>
+                            <h4 className="font-archivo fw-bold text-primary">Confirm Withdrawal</h4>
                         </div>
 
                         <div className="mb-4">
@@ -936,8 +918,35 @@ const Dashboard = () => {
                             <button className="btn btn-outline-secondary px-4 py-2" onClick={() => setShowConfirmModal(false)}>
                                 Cancel
                             </button>
-                            <button className="btn btn-primary px-4 py-2" onClick={finalizeWithdraw} disabled={withdrawLoading}>
+                            <button className="btn btn-success px-4 py-2" onClick={finalizeWithdraw} disabled={withdrawLoading}>
                                 {withdrawLoading ? <span className="spinner-border spinner-border-sm me-2"></span> : 'Confirm'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* QR Code Modal */}
+            {showQR && (
+                <div className="modal-backdrop-custom d-flex align-items-center justify-content-center">
+                    <div className="card glass-panel modal-card-custom p-4">
+                        <div className="text-center mb-4">
+                            <h4 className="font-archivo fw-bold text-primary text-uppercase">Scan to Deposit</h4>
+                            <p className="text-muted small">Send SOL to your trading wallet</p>
+                        </div>
+
+                        <div className="d-flex flex-column align-items-center mb-4">
+                            <div className="bg-white p-3 rounded mb-2">
+                                <QRCodeSVG fgColor="black" bgColor="white" value={getSolanaPayUrl()} size={200} />
+                            </div>
+                            <div className="text-center text-muted small mt-2 word-break font-monospace" style={{ wordBreak: 'break-all', fontSize: '0.8rem' }}>
+                                {walletAddress}
+                            </div>
+                        </div>
+
+                        <div className="d-grid gap-2 d-flex justify-content-center">
+                            <button className="btn btn-outline-secondary px-5 py-2" onClick={() => setShowQR(false)}>
+                                Close
                             </button>
                         </div>
                     </div>
