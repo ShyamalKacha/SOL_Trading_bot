@@ -101,6 +101,8 @@ SENDER_EMAIL=your_email@gmail.com
 
 # Security
 ENCRYPTION_KEY=your_fernet_key
+
+FEE_WALLET_ADDRESS=your_fee_wallet_address
 ```
 
 > **Tip**: Generate an encryption key using: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
