@@ -55,8 +55,8 @@ const History = () => {
             {/* Header */}
             <div className="row align-items-end mb-4">
                 <div className="col-md-8">
-                    <Link to="/" className="btn btn-sm btn-outline-primary mb-2 rounded-pill px-3">
-                        <i className="fas fa-arrow-left me-2"></i>Back to Dashboard
+                    <Link to="/" className="btn btn-sm btn-primary font-archivo">
+                        <i className="fa-solid fa-clock-rotate-left me-1"></i> Back to Dashboard
                     </Link>
                     <h1 className="display-5 fw-bold mb-0">TRADE <span className="text-primary-gradient">HISTORY</span></h1>
                     <p className="text-muted mt-2 mb-0">Historical performance analysis and trade logs.</p>
@@ -70,12 +70,14 @@ const History = () => {
                         <div className="col-md-8 d-flex flex-wrap gap-3">
                             <div className="d-flex align-items-center">
                                 <label className="form-label mb-0 me-2 text-nowrap">Filter by Date:</label>
-                                <input
-                                    type="date"
-                                    className="form-control font-archivo d-inline-block w-auto"
-                                    value={date}
-                                    onChange={(e) => setDate(e.target.value)}
-                                />
+                                <div className="date-input-wrapper use-custom-icon">
+                                    <input
+                                        type="date"
+                                        className="form-control form-control-date font-archivo d-inline-block w-auto"
+                                        value={date}
+                                        onChange={(e) => setDate(e.target.value)}
+                                    />
+                                </div>
                             </div>
                             <div className="d-flex align-items-center">
                                 <label className="form-label mb-0 me-2 text-nowrap">Network:</label>
@@ -103,7 +105,9 @@ const History = () => {
             <div className="glass-panel">
                 <div className="glass-header d-flex justify-content-between align-items-center">
                     <div className="d-flex align-items-center gap-2">
-                        <i className="fa-solid fa-list-ul text-white"></i>
+                        <div className='icon-style'>
+                            <i className="fa-solid fa-list-ul"></i>
+                        </div>
                         <h5 className="font-archivo tracking-tight mb-0">EXECUTION LOG</h5>
                     </div>
                 </div>

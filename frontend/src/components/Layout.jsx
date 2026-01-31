@@ -24,16 +24,19 @@ const Layout = () => {
 
     // Wallet Modal State
     const [showWalletModal, setShowWalletModal] = useState(false);
+    // Drawer State (for mobile)
+    const [showDrawer, setShowDrawer] = useState(false);
 
     const handleLogout = async () => {
         await logout();
+        setShowDrawer(false);
         navigate('/login');
     };
 
     const openWalletModal = (e) => {
         e.preventDefault();
         setShowWalletModal(true);
-        // Data is already available from context - no need to fetch!
+        setShowDrawer(false); // Close drawer when opening wallet modal
     };
 
     const closeWalletModal = () => {
@@ -44,29 +47,69 @@ const Layout = () => {
         navigator.clipboard.writeText(walletAddress);
     };
 
+    const toggleDrawer = () => {
+        setShowDrawer(!showDrawer);
+    };
+
+    const handleNetworkChange = (network) => {
+        changeNetwork(network);
+        setShowDrawer(false);
+    };
+
+    // Close drawer when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (showDrawer && !e.target.closest('.mobile-drawer') && !e.target.closest('.navbar-toggler')) {
+                setShowDrawer(false);
+            }
+        };
+
+        if (showDrawer) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showDrawer]);
+
     return (
         <>
             {/* Navbar */}
             <nav className="navbar navbar-expand-lg fixed-top navbar-custom">
                 <div className="container-xl">
                     <Link className="navbar-brand d-flex align-items-center gap-2" to="/dashboard">
-                        <div className="logo d-flex align-items-center">
-                            <img src={Logo} alt="AutoSOL" height={40} />
+                        <div className="d-flex align-items-center">
+                            {/* Mobile */}
+                            <img
+                                src={Logo}
+                                alt="AutoSOL"
+                                height={28}
+                                className="d-block d-sm-none"
+                            />
+
+                            {/* Tablet + Desktop */}
+                            <img
+                                src={Logo}
+                                alt="AutoSOL"
+                                height={35}
+                                className="d-none d-sm-block"
+                            />
                         </div>
                     </Link>
 
                     {user && (
                         <>
                             <div className="d-flex align-items-center gap-2 gap-md-3 ms-auto">
-                                <div className="d-flex align-items-center px-3 py-1 rounded-pill gap-3"
-                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)' }}>
-
+                                {/* Desktop Network Dropdown & Balances - Hidden on mobile */}
+                                <div className="d-none d-lg-flex align-items-center rounded-pill gap-1">
                                     {/* NETWORK DROPDOWN */}
-                                    <div className="dropdown">
-                                        <button className="btn btn-sm btn-link text-light text-decoration-none p-0 d-flex align-items-center gap-2 dropdown-toggle"
+                                    <div className="dropdown fixed-pill" 
+                                         style={{ background: '#C1FF72', border: '1px solid var(--glass-border)' }}>
+                                        <button className="btn btn-sm btn-link text-black text-decoration-none p-0 d-flex align-items-center gap-1 dropdown-toggle"
                                             type="button" id="networkDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                            <span className={`status-indicator ${selectedNetwork === 'mainnet' ? 'status-active' : selectedNetwork === 'devnet' ? 'status-warning' : 'status-inactive'}`}></span>
-                                            <span className="small font-archivo text-main fw-bold">{selectedNetwork.toUpperCase()}</span>
+                                            <span className={`status-indicator`}></span>
+                                            <span className="small font-archivo text-black fw-bold">{selectedNetwork.toUpperCase()}</span>
                                         </button>
                                         <ul className="dropdown-menu dropdown-menu-end shadow-lg">
                                             <li>
@@ -90,53 +133,139 @@ const Layout = () => {
                                         </ul>
                                     </div>
 
-                                    <div className="vr h-50 my-auto text-muted opacity-25"></div>
-                                    <div className="d-flex align-items-center gap-2" title="SOL Balance">
-                                        <i className="fa-brands fa-solana text-primary small"></i>
-                                        <span className="small font-archivo text-light">{solBalance.toFixed(4)}<span className="d-none d-md-inline"> SOL</span></span>
-                                    </div>
-                                    <div className="d-flex align-items-center gap-2" title="USDC Balance">
-                                        <i className="fa-solid fa-dollar-sign text-success small"></i>
-                                        <span className="small font-archivo text-light">{usdcBalance.toFixed(4)}<span className="d-none d-md-inline"> USDC</span></span>
+                                    <div className="fixed-pill d-flex gap-2"  style={{ background: '#C1FF72', border: '1px solid var(--glass-border)' }}>
+                                        <div className="d-flex align-items-center gap-2" title="SOL Balance">
+                                            <span className="small font-archivo text-black fw-bold">{solBalance.toFixed(4)}<span className=""> SOL</span></span>
+                                        </div>
+                                        <div className="d-flex align-items-center gap-2" title="USDC Balance">
+                                            <span className="small font-archivo text-black fw-bold">{usdcBalance.toFixed(4)}<span className=""> USDC</span></span>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <button className="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                                    <i className="fa-solid fa-bars text-muted"></i>
+                                {/* Mobile: Show balances only */}
+                                <div className="d-flex d-lg-none align-items-center gap-1">
+                                    <div className="fixed-pill d-flex gap-2"  style={{ background: '#C1FF72', border: '1px solid var(--glass-border)' }}>
+                                        <div className="d-flex align-items-center gap-1" title="SOL Balance">
+                                            <span className="small font-archivo text-black fw-bold">{solBalance.toFixed(2)}<span className=""> SOL</span></span>
+                                        </div>
+                                        <div className="d-flex align-items-center gap-1" title="USDC Balance">
+                                            <span className="small font-archivo text-black fw-bold">{usdcBalance.toFixed(2)}<span className=""> USDC</span></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Burger Menu - Visible on mobile/tablet */}
+                                <button 
+                                    className="navbar-toggler border-0 d-lg-none" 
+                                    type="button" 
+                                    onClick={toggleDrawer}
+                                    aria-label="Toggle navigation"
+                                >
+                                    <i className={`fa-solid ${showDrawer ? 'fa-times' : 'fa-bars'} text-muted`}></i>
                                 </button>
                             </div>
 
-                            <div className="collapse navbar-collapse" id="navbarNav">
-                                <div className="mx-auto"></div>
-
-                                <div className="d-flex align-items-center gap-3">
-                                    <div className="dropdown">
-                                        <button
-                                            className="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2 border-0"
-                                            type="button" id="userDropdown" data-bs-toggle="dropdown">
-                                            <i className="fa-solid fa-circle-user fa-lg text-primary"></i>
-                                            <span className="d-lg-inline d-none">Account</span>
-                                        </button>
-                                        <ul className="dropdown-menu dropdown-menu-end shadow-lg">
-                                            <li>
-                                                <a className="dropdown-item text-light" href="#" onClick={openWalletModal}>
-                                                    <i className="fa-solid fa-wallet me-2 text-muted"></i>
-                                                    Wallet
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <hr className="dropdown-divider border-secondary" />
-                                            </li>
-                                            <li><button className="dropdown-item text-danger" onClick={handleLogout}><i
-                                                className="fa-solid fa-right-from-bracket me-2"></i> Logout</button></li>
-                                        </ul>
-                                    </div>
+                            {/* Desktop Menu - Hidden on mobile/tablet */}
+                            <div className="d-none d-lg-flex align-items-center gap-3 ms-3">
+                                <div className="dropdown">
+                                    <button
+                                        className="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2 border-0"
+                                        type="button" id="userDropdown" data-bs-toggle="dropdown">
+                                        <i className="fa-solid fa-circle-user fa-lg text-primary"></i>
+                                        <span>Account</span>
+                                    </button>
+                                    <ul className="dropdown-menu dropdown-menu-end shadow-lg">
+                                        <li>
+                                            <a className="dropdown-item text-light" href="#" onClick={openWalletModal}>
+                                                <i className="fa-solid fa-wallet me-2 text-muted"></i>
+                                                Wallet
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <hr className="dropdown-divider border-secondary" />
+                                        </li>
+                                        <li>
+                                            <button className="dropdown-item text-danger" onClick={handleLogout}>
+                                                <i className="fa-solid fa-right-from-bracket me-2"></i> Logout
+                                            </button>
+                                        </li>
+                                    </ul>
                                 </div>
                             </div>
                         </>
                     )}
                 </div>
             </nav>
+
+            {/* Mobile Drawer Navigation */}
+            {showDrawer && (
+                <div className="mobile-drawer-backdrop" onClick={() => setShowDrawer(false)}></div>
+            )}
+            
+            <div className={`mobile-drawer ${showDrawer ? 'show' : ''}`}>
+                <div className="drawer-content">
+                    <div className="drawer-header">
+                        <h5 className="mb-0 font-archivo text-primary">
+                            <i className="fa-solid fa-bars me-2"></i>Menu
+                        </h5>
+                        <button className="btn-close-drawer" onClick={() => setShowDrawer(false)}>
+                            <i className="fa-solid fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div className="drawer-body">
+                        {/* Network Selection */}
+                        <div className="drawer-section">
+                            <label className="drawer-label">
+                                <i className="fa-solid fa-network-wired me-2"></i>Network
+                            </label>
+                            <div className="network-options">
+                                <button 
+                                    className={`network-option ${selectedNetwork === 'mainnet' ? 'active' : ''}`}
+                                    onClick={() => handleNetworkChange('mainnet')}
+                                >
+                                    <i className="fa-solid fa-circle text-success me-2"></i>
+                                    <span>Mainnet</span>
+                                    {selectedNetwork === 'mainnet' && <i className="fa-solid fa-check ms-auto"></i>}
+                                </button>
+                                <button 
+                                    className={`network-option ${selectedNetwork === 'devnet' ? 'active' : ''}`}
+                                    onClick={() => handleNetworkChange('devnet')}
+                                >
+                                    <i className="fa-solid fa-circle text-warning me-2"></i>
+                                    <span>Devnet</span>
+                                    {selectedNetwork === 'devnet' && <i className="fa-solid fa-check ms-auto"></i>}
+                                </button>
+                                <button 
+                                    className={`network-option ${selectedNetwork === 'testnet' ? 'active' : ''}`}
+                                    onClick={() => handleNetworkChange('testnet')}
+                                >
+                                    <i className="fa-solid fa-circle text-info me-2"></i>
+                                    <span>Testnet</span>
+                                    {selectedNetwork === 'testnet' && <i className="fa-solid fa-check ms-auto"></i>}
+                                </button>
+                            </div>
+                        </div>
+
+                        <hr className="drawer-divider" />
+
+                        {/* Menu Items */}
+                        <div className="drawer-section">
+                            <button className="drawer-menu-item" onClick={openWalletModal}>
+                                <i className="fa-solid fa-wallet me-3"></i>
+                                <span>Wallet</span>
+                                <i className="fa-solid fa-chevron-right ms-auto"></i>
+                            </button>
+
+                            <button className="drawer-menu-item text-danger" onClick={handleLogout}>
+                                <i className="fa-solid fa-right-from-bracket me-3"></i>
+                                <span>Logout</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             {/* Main Content */}
             <main className="main-content">

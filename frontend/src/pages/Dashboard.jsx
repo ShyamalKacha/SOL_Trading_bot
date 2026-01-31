@@ -452,7 +452,10 @@ const Dashboard = () => {
             <div className="dash-panel">
                 <div className="dash-header">
                     <div className="d-flex align-items-center gap-2">
-                        <i className="fa-solid fa-wallet text-primary"></i>
+                        <div className='icon-style'>
+                            <i className="fa-solid fa-wallet "></i>
+                        </div>
+
                         <h5 className="font-archivo tracking-tight">WALLET OPERATIONS</h5>
                     </div>
                     <button className="btn btn-sm btn-outline-secondary" onClick={() => refreshWalletData()} disabled={loadingWallet} title="Sync Chain Data">
@@ -464,54 +467,59 @@ const Dashboard = () => {
                         {/* Wallet ID */}
                         <div className="col-lg-5">
                             <label className="form-label">Wallet Address</label>
-                            <div className="input-group mb-3">
-                                <div className="wallet-address flex-grow-1 font-archivo text-primary" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <div className="input-group mb-3 wallet-group">
+                                <div className="wallet-address flex-grow-1 font-archivo text-primary">
                                     {walletAddress}
                                 </div>
-                                <button className="btn btn-outline-secondary copy-btn" type="button"
-                                    onClick={() => copyToClipboard(walletAddress, 'Address')} title="Copy Address">
+
+                                <button
+                                    className="btn btn-outline-secondary copy-btn"
+                                    type="button"
+                                    onClick={() => copyToClipboard(walletAddress, 'Address')}
+                                    title="Copy Address"
+                                >
                                     <i className="fas fa-copy"></i>
                                 </button>
                             </div>
+
                             {walletError && <div className="alert alert-danger py-2 mt-2">{walletError}</div>}
                         </div>
 
                         {/* Portfolio Overview */}
                         <div className="col-lg-7">
                             <label className="form-label">Asset Allocation</label>
-                            <div className="rounded p-0" style={{ minHeight: '100px' }}>
+                            <div className="rounded p-3" style={{
+                                minHeight: '100px',
+                                background: 'rgba(0, 0, 0, 0.2)',
+                                border: '1px solid var(--glass-border)'
+                            }}>
                                 {loadingWallet ? (
                                     <div className="text-center py-4 text-muted">
                                         <div className="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
                                         <div className="font-archivo small">SCANNING ASSETS...</div>
                                     </div>
                                 ) : balances.length > 0 ? (
-                                    <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                        <table className="table mb-0">
-                                            <thead>
-                                                <tr>
-                                                    <th>Asset</th>
-                                                    <th className="text-end">Holding</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="font-archivo">
-
-                                                {balances.map((b, idx) => (
-                                                    <tr key={idx}>
-                                                        <td>
-                                                            <div className="d-flex align-items-center">
-                                                                <div className="token-icon">{b.token.substring(0, 2)}</div>
-                                                                <div>
-                                                                    <div className="fw-bold">{b.token}</div>
-                                                                    <small className="text-muted" style={{ fontSize: '0.75rem' }}>{b.name || 'Unknown'}</small>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="text-end font-archivo">{b.balance.toFixed(6)}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                    <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                        {balances.map((b, idx) => (
+                                            <div key={idx} className="asset-row d-flex align-items-center justify-content-between py-2">
+                                                <div className="d-flex align-items-center gap-3">
+                                                    <div className="token-icon-circle">
+                                                        {b.token.substring(0, 2).toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <div className="fw-bold text-primary" style={{ fontSize: '1rem' }}>
+                                                            {b.token}
+                                                        </div>
+                                                        <small className="text-muted" style={{ fontSize: '0.8rem' }}>
+                                                            {b.name || 'Unknown'}
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                                <div className="text-end font-archivo fw-bold" style={{ fontSize: '1rem', color: 'var(--text-main)' }}>
+                                                    {b.balance.toFixed(2)}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 ) : (
                                     <div className="text-center py-4 text-muted">
@@ -529,65 +537,123 @@ const Dashboard = () => {
             <div className="dash-panel">
                 <div className="dash-header">
                     <div className="d-flex align-items-center gap-2">
-                        <i className="fa-solid fa-money-bill-transfer text-success"></i>
+                         <div className='icon-style'>
+                        <i className="fa-solid fa-money-bill-transfer"></i>
+                         </div>
                         <h5 className="font-archivo tracking-tight">FUNDING OPERATIONS</h5>
                     </div>
                 </div>
-                <div className="glass-body border-top border-secondary border-opacity-10">
+                <div className="glass-body">
                     <div className="row g-4">
                         {/* Deposit */}
-                        <div className="col-md-6 border-end border-secondary border-opacity-10 d-flex flex-column">
+                        <div className="col-md-6">
+                            <div className="funding-section d-flex flex-column" style={{ height: '100%' }}>
+                                <div className="flex-grow-0">
+                                    <h6 className="funding-title text-primary mb-3">
+                                        Deposit Funds - Use Wallet Address or QR Code below
+                                    </h6>
 
-                            <div className="mb-3">
-                                <label className="form-label">Deposit SOL</label>
-                                <div className="input-group">
-                                    <span className="input-group-text">SOL</span>
-                                    <input type="number" className="form-control font-archivo" placeholder="0.00" min="0" step="0.01"
-                                        value={depositAmount} onChange={e => setDepositAmount(e.target.value)} />
+                                    <div className="mb-4">
+                                        <input
+                                            type="text"
+                                            className="form-control form-control-lg font-archivo"
+                                            placeholder="Enter deposit amount or scan QR"
+                                            value={depositAmount}
+                                            onChange={e => setDepositAmount(e.target.value)}
+                                            style={{
+                                                background: 'rgba(0, 0, 0, 0.3)',
+                                                border: '1px solid var(--glass-border)',
+                                                borderRadius: '12px',
+                                                padding: '1rem 1.25rem'
+                                            }}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-                            <button className="btn btn-success w-100 mt-auto" onClick={handleGenerateQR}>
-                                <i className="fas fa-qrcode me-2"></i>Generate QR Code
-                            </button>
+                                <button
+                                    className="btn btn-deposit w-100 mt-auto"
+                                    onClick={handleGenerateQR}
+                                >
+                                    Deposit
+                                </button>
+                            </div>
                         </div>
 
                         {/* Withdraw */}
                         <div className="col-md-6">
+                            <div className="funding-section d-flex flex-column" style={{ height: '100%' }}>
+                                <div className="flex-grow-0">
+                                    <h6 className="funding-title text-primary mb-3">
+                                        Withdraw SOL (Paste your SOL wallet address here)
+                                    </h6>
 
-                            <div className="mb-3">
-                                <label className="form-label">Destination Address</label>
-                                <input type="text" className="form-control font-archivo" placeholder="Solana Wallet Address"
-                                    value={withdrawAddress} onChange={e => setWithdrawAddress(e.target.value)} />
-                            </div>
+                                    <div className="mb-3">
+                                        <input
+                                            type="text"
+                                            className="form-control form-control-lg font-archivo"
+                                            placeholder="Destination wallet address"
+                                            value={withdrawAddress}
+                                            onChange={e => setWithdrawAddress(e.target.value)}
+                                            style={{
+                                                background: 'rgba(0, 0, 0, 0.3)',
+                                                border: '1px solid var(--glass-border)',
+                                                borderRadius: '12px',
+                                                padding: '1rem 1.25rem'
+                                            }}
+                                        />
+                                    </div>
 
-                            <div className="row g-2 mb-3">
-                                <div className="col-8">
-                                    <label className="form-label">Asset</label>
-                                    <select className="form-select font-archivo" value={withdrawToken} onChange={e => setWithdrawToken(e.target.value)}>
-                                        <option value="" disabled>Select Token...</option>
-                                        {balances.length > 0 && balances.map((b, idx) => (
-                                            <option key={idx} value={b.mint}>{b.token} ({b.balance.toFixed(4)})</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="col-4">
-                                    <label className="form-label">Amount</label>
-                                    <div className="input-group">
-                                        <input type="number" className="form-control font-archivo" placeholder="0.00"
-                                            value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} />
-                                        <button className="btn btn-outline-secondary font-archivo" type="button" onClick={handleMaxWithdraw}>MAX</button>
+                                    <div className="row g-3 mb-4">
+                                        <div className="col-7">
+                                            <label className="form-label text-primary small mb-2">Asset</label>
+                                            <select
+                                                className="form-select form-select-lg font-archivo"
+                                                value={withdrawToken}
+                                                onChange={e => setWithdrawToken(e.target.value)}
+                                                style={{
+                                                    background: 'rgba(0, 0, 0, 0.3)',
+                                                    border: '1px solid var(--glass-border)',
+                                                    borderRadius: '12px',
+                                                    padding: '0.875rem 1rem'
+                                                }}
+                                            >
+                                                <option value="" disabled>SOL</option>
+                                                {balances.length > 0 && balances.map((b, idx) => (
+                                                    <option key={idx} value={b.mint}>{b.token} ({b.balance.toFixed(4)})</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="col-5">
+                                            <label className="form-label text-primary small mb-2">Amount</label>
+                                            <input
+                                                type="number"
+                                                className="form-control form-control-lg font-archivo"
+                                                placeholder="Amount"
+                                                value={withdrawAmount}
+                                                onChange={e => setWithdrawAmount(e.target.value)}
+                                                style={{
+                                                    background: 'rgba(0, 0, 0, 0.3)',
+                                                    border: '1px solid var(--glass-border)',
+                                                    borderRadius: '12px',
+                                                    padding: '0.875rem 1rem'
+                                                }}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <button className="btn btn-danger w-100" onClick={handleWithdraw} disabled={withdrawLoading}>
-                                {withdrawLoading ? (
-                                    <><span className="spinner-border spinner-border-sm me-2"></span>Processing...</>
-                                ) : (
-                                    <><i className="fas fa-paper-plane me-2"></i>Execute Withdrawal</>
-                                )}
-                            </button>
+                                <button
+                                    className="btn btn-withdrawal w-100 mt-auto"
+                                    onClick={handleWithdraw}
+                                    disabled={withdrawLoading}
+                                >
+                                    {withdrawLoading ? (
+                                        <><span className="spinner-border spinner-border-sm me-2"></span>Processing...</>
+                                    ) : (
+                                        <>Withdrawal</>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -600,8 +666,10 @@ const Dashboard = () => {
                     <div className="dash-panel h-100">
                         <div className="dash-header">
                             <div className="d-flex align-items-center gap-2">
-                                <i className="fa-solid fa-sliders text-accent"></i>
-                                <h5 className="font-archivo tracking-tight">STRATEGY CONFIG</h5>
+                                 <div className='icon-style'>
+                                <i className="fa-solid fa-sliders "></i>
+                                 </div>
+                                <h5 className="font-archivo tracking-tight">Bot Strategy Config</h5>
                             </div>
                         </div>
                         <div className="glass-body">
@@ -651,26 +719,28 @@ const Dashboard = () => {
                     <div className="dash-panel h-100">
                         <div className="dash-header">
                             <div className="d-flex align-items-center gap-2">
-                                <i className="fa-solid fa-microchip text-warning"></i>
+                                 <div className='icon-style'>
+                                <i className="fa-solid fa-microchip"></i>
+                                 </div>
                                 <h5 className="font-archivo tracking-tight">EXECUTION PARAMS</h5>
                             </div>
                         </div>
                         <div className="glass-body">
                             <div className="row g-2 mb-3">
                                 <div className="col-6">
-                                    <label className="form-label text-success">Take Profit (%)</label>
+                                    <label className="form-label text-boss">Base Price + % - Sell</label>
                                     <input type="number" className="form-control font-archivo" min="0" step="0.1"
                                         value={upPercentage} onChange={e => setUpPercentage(e.target.value)} disabled={isTrading} />
                                 </div>
                                 <div className="col-6">
-                                    <label className="form-label text-danger">Stop Loss (%)</label>
+                                    <label className="form-label text-boss">Base Price - % = Buy</label>
                                     <input type="number" className="form-control font-archivo" min="0" step="0.1"
                                         value={downPercentage} onChange={e => setDownPercentage(e.target.value)} disabled={isTrading} />
                                 </div>
                             </div>
 
                             <div className="mb-3">
-                                <label className="form-label">Trade Volume (USD)</label>
+                                <label className="form-label">Trading Value - USD</label>
                                 <div className="input-group">
                                     <span className="input-group-text">$</span>
                                     <input type="number" className="form-control font-archivo fw-bold" min="0" step="0.01"
@@ -679,7 +749,7 @@ const Dashboard = () => {
                             </div>
 
                             <div className="mb-4">
-                                <label className="form-label">Order Splitting (Parts)</label>
+                                <label className="form-label">Order Splitting - Parts</label>
                                 <input type="number" className="form-control font-archivo" min="1" step="1"
                                     value={parts} onChange={e => setParts(e.target.value)} disabled={isTrading} />
                                 <div className="form-text mt-1">Split volume into smaller orders.</div>
@@ -687,14 +757,14 @@ const Dashboard = () => {
 
                             <div className="d-grid gap-2">
                                 {!isTrading ? (
-                                    <button className="btn btn-success py-3" onClick={startTrading} disabled={tradingLoading}>
+                                    <button className="btn btn-deposit py-3" onClick={startTrading} disabled={tradingLoading}>
                                         {tradingLoading ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="fa-solid fa-play me-2"></i>}
-                                        INITIATE SEQUENCE
+                                        Start Bot
                                     </button>
                                 ) : (
                                     <button className="btn btn-danger py-3" onClick={stopTrading} disabled={tradingLoading}>
                                         {tradingLoading ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="fa-solid fa-stop me-2"></i>}
-                                        TERMINATE SEQUENCE
+                                        Stop Bot
                                     </button>
                                 )}
                             </div>
@@ -707,7 +777,9 @@ const Dashboard = () => {
                     <div className="dash-panel h-100">
                         <div className="dash-header">
                             <div className="d-flex align-items-center gap-2">
-                                <i className="fa-solid fa-satellite-dish text-info"></i>
+                                 <div className='icon-style'>
+                                <i className="fa-solid fa-satellite-dish"></i>
+                                 </div>
                                 <h5 className="font-archivo tracking-tight">LIVE MONITOR</h5>
                             </div>
                         </div>
@@ -715,7 +787,7 @@ const Dashboard = () => {
                             <div className="d-flex align-items-center justify-content-between mb-4 p-3 rounded"
                                 style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)' }}>
                                 <div>
-                                    <div className="text-boss small text-uppercase">Engine Status</div>
+                                    <div className="text-boss small ">Engine Status</div>
                                     <div className="d-flex align-items-center mt-1">
                                         <span className={`status-indicator ${isTrading ? 'status-active' : 'status-inactive'}`}></span>
                                         <span className={`font-archivo fw-bold ${isTrading ? 'text-success' : 'text-muted'}`}>
@@ -724,8 +796,8 @@ const Dashboard = () => {
                                     </div>
                                 </div>
                                 <div className="text-end">
-                                    <div className="text-boss small text-uppercase">Current Price</div>
-                                    <div className="price-display text-primary">
+                                    <div className="text-boss small ">Current Price</div>
+                                    <div className="price-display text-muted">
                                         ${status.current_price < 0.01 ? status.current_price.toFixed(8) : status.current_price.toFixed(4)}
                                     </div>
                                 </div>
@@ -752,7 +824,7 @@ const Dashboard = () => {
 
                             <div className="p-3 rounded text-center mb-3"
                                 style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)' }}>
-                                <label className="text-boss small text-uppercase mb-1">Cumulative P&L</label>
+                                <label className="text-boss small  mb-1">Cumulative Profit & Loss</label>
                                 <div className={`display-6 font-archivo fw-bold ${status.total_profit > 0 ? 'text-success' : status.total_profit < 0 ? 'text-danger' : 'text-muted'}`}>
                                     {status.total_profit >= 0 ? '+' : '-'}${Math.abs(status.total_profit).toFixed(4)}
                                 </div>
@@ -773,7 +845,9 @@ const Dashboard = () => {
             <div className="dash-panel mb-4">
                 <div className="dash-header d-flex justify-content-between align-items-center">
                     <div className="d-flex align-items-center gap-2">
-                        <i className="fa-solid fa-chart-line text-warning"></i>
+                         <div className='icon-style'>
+                        <i className="fa-solid fa-chart-line "></i>
+                         </div>
                         <h5 className="font-archivo tracking-tight mb-0">PERFORMANCE GRAPH</h5>
                     </div>
                 </div>
@@ -790,15 +864,22 @@ const Dashboard = () => {
             <div className="dash-panel">
                 <div className="dash-header d-flex justify-content-between align-items-center">
                     <div className="d-flex align-items-center gap-2">
-                        <i className="fa-solid fa-list-ul text-white"></i>
+                         <div className='icon-style'>
+                        <i className="fa-solid fa-list-ul "></i>
+                         </div>
                         <h5 className="font-archivo tracking-tight mb-0">ORDER LOG</h5>
+                    </div>
+                    <div className="d-flex gap-2">
+                        <Link to="/trade-history" className="btn btn-sm btn-primary font-archivo">
+                            <i className="fa-solid fa-clock-rotate-left me-1"></i> History
+                        </Link>
                     </div>
                 </div>
                 <div className="glass-body p-0">
                     {/* PC View - Table */}
                     <div className="table-responsive d-none d-md-block">
                         <table className="table table-hover mb-0">
-                            <thead>
+                            <thead className="bg-dark text-white">
                                 <tr>
                                     <th>Timestamp</th>
                                     <th>Network</th>

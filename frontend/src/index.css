@@ -299,9 +299,8 @@ a:hover {
 }
 
 .btn-primary:hover {
-
     transform: translateY(-1px);
-    /* background: var(--primary); */
+    background: linear-gradient(180deg, #2B2C26, #000000);
 }
 
 
@@ -450,29 +449,55 @@ a:hover {
     border-radius: 50%;
     margin-right: 8px;
     position: relative;
+    background-color: black;
 }
 
-.status-active {
-    background-color: var(--success);
-    box-shadow: 0 0 8px var(--success);
+.fixed-pill {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    white-space: nowrap;
+    padding: 0 4px;
+    height: 22px;
+    min-width: 90px;
 }
 
-.status-active::after {
-    content: '';
-    position: absolute;
-    top: -4px;
-    left: -4px;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: 1px solid var(--success);
-    opacity: 0.5;
-    animation: pulse 2s infinite;
+/* sm ≥576px */
+@media (min-width: 576px) {
+    .fixed-pill {
+        padding: 0 10px;
+        height: 25px;
+        min-width: 120px;
+    }
 }
 
-.status-inactive {
-    background-color: var(--text-muted);
+/* md ≥768px */
+@media (min-width: 768px) {
+    .fixed-pill {
+        padding: 0 10px;
+
+        height: 27px;
+        min-width: 120px;
+    }
 }
+
+/* lg ≥992px */
+@media (min-width: 992px) {
+    .fixed-pill {
+        padding: 0 10px;
+
+        height: 30px;
+        min-width: 140px;
+    }
+}
+
+
+
+
+
+
+
 
 @keyframes pulse {
     0% {
@@ -676,4 +701,616 @@ a:hover {
 .qr-code-container:hover {
     box-shadow: 0 0 30px rgba(99, 102, 241, 0.4);
     transform: scale(1.02);
+}
+
+/* ===========================================
+   MOBILE DRAWER NAVIGATION
+   Add this to your existing style.css file
+   =========================================== */
+
+/* Z-Index Layers:
+   1000 = Navbar (fixed-top)
+   1040 = Modal backdrop
+   1050 = Modal content
+   1055 = Drawer backdrop
+   1060 = Drawer content
+*/
+
+/* Mobile Drawer Backdrop */
+.mobile-drawer-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 1055;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Mobile Drawer Container */
+.mobile-drawer {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: 300px;
+    max-width: 85vw;
+    height: 100vh;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--backdrop-blur));
+    border-left: 1px solid var(--primary);
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
+    z-index: 1060;
+    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+}
+
+.mobile-drawer.show {
+    right: 0;
+}
+
+/* Drawer Content */
+.drawer-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* Drawer Header */
+.drawer-header {
+    padding: 1.5rem 1.25rem;
+    border-bottom: 1px solid var(--glass-border);
+    background: rgba(0, 0, 0, 0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    backdrop-filter: blur(10px);
+}
+
+.drawer-header h5 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.btn-close-drawer {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.btn-close-drawer:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+}
+
+/* Drawer Body */
+.drawer-body {
+    flex: 1;
+    padding: 1.5rem 1.25rem;
+    overflow-y: auto;
+}
+
+/* Drawer Section */
+.drawer-section {
+    margin-bottom: 1.5rem;
+}
+
+.drawer-label {
+    display: block;
+    color: var(--primary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+    font-family: "Archivo", sans-serif;
+}
+
+.drawer-divider {
+    border-color: var(--glass-border);
+    margin: 1.5rem 0;
+    opacity: 0.5;
+}
+
+/* Network Options */
+.network-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.network-option {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    color: var(--text-main);
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: "Archivo", sans-serif;
+}
+
+.network-option:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateX(4px);
+}
+
+.network-option.active {
+    background: rgba(193, 255, 114, 0.1);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.network-option i.fa-check {
+    color: var(--primary);
+    font-size: 0.9rem;
+}
+
+/* Drawer Menu Items */
+.drawer-menu-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 1rem 1rem;
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: var(--radius-md);
+    margin-bottom: 0.5rem;
+    font-family: "Archivo", sans-serif;
+}
+
+.drawer-menu-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateX(4px);
+}
+
+.drawer-menu-item i {
+    font-size: 1.1rem;
+}
+
+.drawer-menu-item.text-danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+/* Responsive adjustments for fixed navbar */
+@media (max-width: 991.98px) {
+    .navbar-custom {
+        z-index: 1000;
+    }
+}
+
+/* Prevent body scroll when drawer is open */
+body.drawer-open {
+    overflow: hidden;
+}
+
+/* Tablet and larger - hide mobile drawer */
+@media (min-width: 992px) {
+
+    .mobile-drawer,
+    .mobile-drawer-backdrop {
+        display: none !important;
+    }
+}
+
+/* Mobile optimization */
+@media (max-width: 575.98px) {
+    .mobile-drawer {
+        width: 280px;
+    }
+
+    .drawer-header {
+        padding: 1.25rem 1rem;
+    }
+
+    .drawer-body {
+        padding: 1.25rem 1rem;
+    }
+}
+
+/* Smooth scrolling for drawer */
+.mobile-drawer {
+    -webkit-overflow-scrolling: touch;
+}
+
+.mobile-drawer::-webkit-scrollbar {
+    width: 4px;
+}
+
+.mobile-drawer::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.mobile-drawer::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.mobile-drawer::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Ensure modal stays above drawer when both are open */
+.modal {
+    z-index: 1065;
+}
+
+.modal-backdrop {
+    z-index: 1064;
+}
+
+/* Animation for hamburger to X icon */
+.navbar-toggler i {
+    transition: all 0.3s ease;
+}
+
+/* ===========================================
+   WALLET OPERATIONS - ASSET ALLOCATION STYLES
+   Add this to your existing style.css file
+   =========================================== */
+
+/* Token Icon Circle - Lime Green Background */
+.token-icon-circle {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--primary);
+    /* #C1FF72 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #000000;
+    font-family: "Archivo", sans-serif;
+    flex-shrink: 0;
+}
+
+/* Asset Row */
+.asset-row {
+    padding: 0.75rem 0;
+    transition: all 0.2s ease;
+}
+
+.asset-row:not(:last-child) {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.asset-row:hover {
+    background: rgba(255, 255, 255, 0.02);
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    border-radius: var(--radius-sm);
+}
+
+/* Smooth scrolling for asset list */
+.asset-row::-webkit-scrollbar {
+    width: 4px;
+}
+
+.asset-row::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.asset-row::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.asset-row::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Responsive adjustments */
+@media (max-width: 991.98px) {
+    .token-icon-circle {
+        width: 45px;
+        height: 45px;
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .token-icon-circle {
+        width: 40px;
+        height: 40px;
+        font-size: 0.8rem;
+    }
+
+    .asset-row {
+        padding: 0.5rem 0;
+    }
+}
+
+/* ===========================================
+   FUNDING OPERATIONS - UPDATED STYLES
+   Add this to your existing style.css file
+   =========================================== */
+
+/* Funding Section */
+.funding-section {
+    padding: 0.5rem 0;
+}
+
+.funding-title {
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    line-height: 1.4;
+    color: var(--primary);
+}
+
+/* Deposit Button - Lime Green */
+.btn-deposit {
+    background: var(--primary);
+    /* #C1FF72 */
+    border: none;
+    color: #000000;
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-family: "Archivo", sans-serif;
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    text-transform: capitalize;
+    letter-spacing: 0.02em;
+}
+
+.btn-deposit:hover {
+    background: #b3f05e;
+    /* Slightly darker lime */
+    color: #000000;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(193, 255, 114, 0.4);
+}
+
+.btn-deposit:active {
+    transform: translateY(0);
+}
+
+/* Withdrawal Button - Coral Red */
+.btn-withdrawal {
+    background: #FF6B6B;
+    /* Coral red matching screenshot */
+    border: none;
+    color: #ffffff;
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-family: "Archivo", sans-serif;
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    text-transform: capitalize;
+    letter-spacing: 0.02em;
+}
+
+.btn-withdrawal:hover {
+    background: #ff5252;
+    /* Slightly darker red */
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+}
+
+.btn-withdrawal:active {
+    transform: translateY(0);
+}
+
+.btn-withdrawal:disabled {
+    background: #ff6b6b80;
+    /* 50% opacity */
+    color: #ffffff;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Form Control Overrides for Funding Section */
+.funding-section .form-control,
+.funding-section .form-select {
+    transition: all 0.2s ease;
+}
+
+.funding-section .form-control:focus,
+.funding-section .form-select:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(193, 255, 114, 0.1);
+}
+
+.funding-section .form-control::placeholder {
+    color: var(--text-faint);
+    opacity: 0.6;
+}
+
+/* Small label styling */
+.funding-section .form-label.small {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+/* Remove border between columns on mobile */
+@media (max-width: 767.98px) {
+    .col-md-6.border-end {
+        border-right: none !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 2rem;
+        margin-bottom: 2rem;
+    }
+}
+
+/* Responsive button sizing */
+@media (max-width: 575.98px) {
+
+    .btn-deposit,
+    .btn-withdrawal {
+        font-size: 1rem;
+        padding: 0.875rem 1.5rem;
+    }
+
+    .funding-title {
+        font-size: 0.85rem;
+    }
+}
+
+.wallet-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    /* 🔥 prevents button from going below */
+}
+
+.wallet-address {
+    min-width: 0;
+    /* REQUIRED for ellipsis in flex */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.copy-btn {
+    flex-shrink: 0;
+    /* button never shrinks or wraps */
+    padding: 6px 10px;
+}
+
+.icon-style {
+    background-color: var(--accent);
+    /* pink */
+    color: black;
+    padding: 8px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Date Input Specific Styles */
+.date-input-wrapper {
+    display: inline-block;
+    position: relative;
+}
+
+.form-control-date {
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid var(--glass-border) !important;
+    color: var(--text-main) !important;
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    padding-right: 2.5rem;
+    transition: all 0.3s ease;
+    font-family: "Archivo", sans-serif;
+    font-size: 0.9rem;
+    min-width: 180px;
+    cursor: pointer;
+    position: relative;
+    color-scheme: dark;
+}
+
+.form-control-date:hover {
+    background-color: rgba(0, 0, 0, 0.4) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 0 0 0 3px rgba(190, 242, 100, 0.1);
+}
+
+.form-control-date:focus {
+    background-color: rgba(0, 0, 0, 0.4) !important;
+    border-color: var(--primary) !important;
+    color: var(--text-main) !important;
+    box-shadow: 0 0 0 3px rgba(190, 242, 100, 0.2);
+    outline: none;
+}
+
+/* White Calendar Icon - Multiple browser support */
+.form-control-date::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    /* Multiple filter combinations for better browser support */
+    filter: invert(100%) brightness(200%) contrast(100%);
+    -webkit-filter: invert(100%) brightness(200%) contrast(100%);
+    opacity: 1;
+    transition: all 0.2s ease;
+    width: 18px;
+    height: 18px;
+    padding: 2px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    margin-left: 8px;
+}
+
+.form-control-date::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+/* Firefox support */
+.form-control-date::-moz-calendar-picker-indicator {
+    filter: invert(100%) brightness(200%);
+    opacity: 1;
+    cursor: pointer;
+}
+
+/* Alternative approach - Custom icon overlay */
+.date-input-wrapper::after {
+    content: '📅';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    font-size: 16px;
+    opacity: 0.8;
+    display: none; /* Show this if the filter doesn't work */
+}
+
+/* If you want to use a custom SVG icon instead */
+.date-input-wrapper.use-custom-icon::after {
+    content: '';
+    display: block;
+    width: 18px;
+    height: 18px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='white' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    opacity: 0.9;
+}
+
+.date-input-wrapper.use-custom-icon .form-control-date::-webkit-calendar-picker-indicator {
+    opacity: 0;
 }

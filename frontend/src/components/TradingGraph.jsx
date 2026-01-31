@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -50,6 +50,27 @@ const markerPlugin = {
 ChartJS.register(markerPlugin);
 
 const TradingGraph = ({ transactionHistory = [], basePrice = 0 }) => {
+    const [screenSize, setScreenSize] = useState({
+        width: window.innerWidth,
+        isMobile: window.innerWidth < 768,
+        isTablet: window.innerWidth >= 768 && window.innerWidth < 1024,
+        isDesktop: window.innerWidth >= 1024
+    });
+
+    useEffect(() => {
+        const handleResize = () => {
+            const width = window.innerWidth;
+            setScreenSize({
+                width,
+                isMobile: width < 768,
+                isTablet: width >= 768 && width < 1024,
+                isDesktop: width >= 1024
+            });
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const chartData = useMemo(() => {
         // 1. Start point
@@ -62,12 +83,11 @@ const TradingGraph = ({ transactionHistory = [], basePrice = 0 }) => {
             part: 'N/A',
             asset: 'N/A',
             action: 'start',
-            markerType: null, // No text for start point
+            markerType: null,
         };
 
         // 2. Transaction points
         const points = transactionHistory.map((tx, idx) => {
-            // Determine Marker type (B or S)
             let mType = null;
             if (tx.action === 'buy') mType = 'B';
             if (tx.action === 'sell') mType = 'S';
@@ -87,41 +107,44 @@ const TradingGraph = ({ transactionHistory = [], basePrice = 0 }) => {
 
         const dataPoints = [startPoint, ...points];
 
+        // Responsive point sizes
+        const pointRadius = screenSize.isMobile ? 5 : 6;
+        const pointHoverRadius = screenSize.isMobile ? 7 : 8;
+
         return {
             labels: dataPoints.map(p => p.x),
             datasets: [
                 {
                     label: 'Price Action',
                     data: dataPoints,
-                    // Theme Colors: Lime / Neon Green
-                    borderColor: '#bef264', // Lime-400 equivalent for "theme" look
+                    borderColor: '#bef264',
                     backgroundColor: (context) => {
                         const ctx = context.chart.ctx;
                         const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-                        gradient.addColorStop(0, 'rgba(190, 242, 100, 0.5)'); // Lime Glow
+                        gradient.addColorStop(0, 'rgba(190, 242, 100, 0.5)');
                         gradient.addColorStop(1, 'rgba(190, 242, 100, 0.0)');
                         return gradient;
                     },
-                    borderWidth: 2,
-                    tension: 0.4, // User requested "smooth" line
+                    borderWidth: screenSize.isMobile ? 1.5 : 2,
+                    tension: 0.4,
                     fill: true,
                     pointBackgroundColor: (context) => {
                         const index = context.dataIndex;
                         const point = context.dataset.data[index];
-                        if (point.action === 'buy') return '#10b981'; // --success
-                        if (point.action === 'sell') return '#ef4444'; // --danger
-                        return '#475569'; // --text-faint
+                        if (point.action === 'buy') return '#10b981';
+                        if (point.action === 'sell') return '#ef4444';
+                        return '#475569';
                     },
                     pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointRadius: 6,
-                    pointHoverRadius: 8,
+                    pointBorderWidth: screenSize.isMobile ? 1.5 : 2,
+                    pointRadius: pointRadius,
+                    pointHoverRadius: pointHoverRadius,
                 },
             ],
         };
-    }, [transactionHistory, basePrice]);
+    }, [transactionHistory, basePrice, screenSize]);
 
-    const options = {
+    const options = useMemo(() => ({
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -129,13 +152,20 @@ const TradingGraph = ({ transactionHistory = [], basePrice = 0 }) => {
                 display: false,
             },
             tooltip: {
-                backgroundColor: 'rgba(15, 23, 42, 0.9)', // --bg-deep/panel
-                titleColor: '#f8fafc', // --text-main
-                bodyColor: '#cbd5e1', // --text-muted
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                titleColor: '#f8fafc',
+                bodyColor: '#cbd5e1',
                 borderColor: 'rgba(255, 255, 255, 0.1)',
                 borderWidth: 1,
-                padding: 12,
+                padding: screenSize.isMobile ? 8 : 12,
                 displayColors: false,
+                bodyFont: {
+                    size: screenSize.isMobile ? 11 : 12
+                },
+                titleFont: {
+                    size: screenSize.isMobile ? 12 : 13,
+                    weight: 'bold'
+                },
                 callbacks: {
                     title: (context) => {
                         const point = context[0].raw;
@@ -163,12 +193,14 @@ const TradingGraph = ({ transactionHistory = [], basePrice = 0 }) => {
                     display: false,
                 },
                 ticks: {
-                    color: '#94a3b8', // --text-muted
-                    maxTicksLimit: 6,
+                    color: '#94a3b8',
+                    maxTicksLimit: screenSize.isMobile ? 4 : screenSize.isTablet ? 5 : 6,
                     font: {
                         family: "'JetBrains Mono', monospace",
-                        size: 10
-                    }
+                        size: screenSize.isMobile ? 8 : 10
+                    },
+                    maxRotation: screenSize.isMobile ? 45 : 0,
+                    minRotation: screenSize.isMobile ? 45 : 0
                 }
             },
             y: {
@@ -176,12 +208,12 @@ const TradingGraph = ({ transactionHistory = [], basePrice = 0 }) => {
                     color: 'rgba(255, 255, 255, 0.05)'
                 },
                 ticks: {
-                    color: '#94a3b8', // --text-muted
+                    color: '#94a3b8',
                     font: {
                         family: "'JetBrains Mono', monospace",
-                        size: 10
+                        size: screenSize.isMobile ? 8 : 10
                     },
-                    callback: (value) => '$' + value.toFixed(4)
+                    callback: (value) => screenSize.isMobile ? `$${value.toFixed(2)}` : `$${value.toFixed(4)}`
                 }
             }
         },
@@ -190,10 +222,17 @@ const TradingGraph = ({ transactionHistory = [], basePrice = 0 }) => {
             axis: 'x',
             intersect: false
         }
-    };
+    }), [screenSize]);
 
     return (
-        <div className="trading-graph-container">
+        <div 
+            className="trading-graph-container" 
+            style={{
+                height: screenSize.isMobile ? '300px' : screenSize.isTablet ? '350px' : '400px',
+                width: '100%',
+                padding: screenSize.isMobile ? '10px' : '15px'
+            }}
+        >
             <Line data={chartData} options={options} />
         </div>
     );
