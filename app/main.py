@@ -1327,14 +1327,14 @@ def trading_algorithm(user_id, base_price, up_percentage, down_percentage, selec
                     trading_state['base_price'] = current_price
 
                     # Calculate profit from this sell
-                    # In a real system, we'd track the purchase price for each part, but in this simplified system:
-                    # profit per token = sell price - base price at time of sell
-                    profit_per_token = current_price - current_base_price
-                    total_profit = profit_per_token * part_size
+                    # Convert dollar amount to actual token amount based on base price at time of purchase
+                    token_amount_sold = part_size / current_base_price  # Amount of tokens bought with part_size dollars at base price
+                    usd_received = token_amount_sold * current_price  # USD received when selling tokens at current price
+                    gross_profit = usd_received - part_size  # Gross profit in USD
 
                     # Account for transaction fees (estimated at $0.02 per transaction as requested)
                     estimated_fee = 0.02  # This is the requested fee amount
-                    total_profit -= estimated_fee  # Subtract fee from profit
+                    total_profit = gross_profit - estimated_fee  # Net profit after fees
                     trading_state['total_profit'] += total_profit
 
                     # Reduce position when selling
