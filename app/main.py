@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask_cors import CORS
 import requests
 import json
 from dotenv import load_dotenv
@@ -57,6 +58,14 @@ from models.trade import Trade
 from database import init_db
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
+CORS(
+    app,
+    supports_credentials=True,
+    origins=[
+        "http://localhost:5173",
+        "https://trade.jumpsol.xyz"
+    ]
+) # Enable CORS for all routes, allowing credentials (cookies/session)
 app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-this-in-production')
 
 # Initialize database tables
@@ -66,6 +75,8 @@ init_db()
 # Using the Jupiter API endpoint for quotes (requires API key)
 JUPITER_QUOTE_API = "https://api.jup.ag/swap/v1/quote"
 JUPITER_SWAP_API = "https://api.jup.ag/swap/v1/swap"
+HELIUS_API_KEY = os.getenv('HELIUS_API_KEY')
+JUPITER_API_KEY = os.getenv('JUPITER_API_KEY')
 
 # Mock data for demonstration
 # SOL mint address
@@ -212,30 +223,27 @@ def require_login(f):
     decorated_function.__name__ = f.__name__
     return decorated_function
 
-# Routes for authentication
-@app.route('/')
+# Routes for authentication - CHANGED FOR REACT
+@app.route('/api/check-auth')
+def check_auth():
+    """Check if user is authenticated and return user info"""
+    if 'user_id' in session:
+        return jsonify({"authenticated": True, "user_id": session['user_id']})
+    return jsonify({"authenticated": False}), 401
+
+@app.route('/api')
 def index():
     if 'user_id' in session:
         return redirect(url_for('dashboard'))
     return render_template('auth/login.html')
 
-@app.route('/login')
-def login():
-    if 'user_id' in session:
-        return redirect(url_for('dashboard'))
-    return render_template('auth/login.html')
-
-@app.route('/register')
-def register():
-    if 'user_id' in session:
-        return redirect(url_for('dashboard'))
-    return render_template('auth/register.html')
-
-@app.route('/dashboard')
+@app.route('/api/dashboard')
 @require_login
 def dashboard():
-    helius_api_key = os.getenv('HELIUS_API_KEY', '')
-    return render_template('dashboard/index.html', helius_api_key=helius_api_key)
+    return jsonify({
+        "message": "Welcome to dashboard API", 
+        "user_id": session['user_id']
+    })
 
 @app.route('/api/register', methods=['POST'])
 def api_register():
@@ -388,12 +396,9 @@ def get_wallet_balance(wallet_address, network="mainnet"):
                 "balances": []
             }
 
-        # Determine the RPC URL based on the network and check for Helius API key
-        helius_api_key = os.getenv('HELIUS_API_KEY')
-
         if network.lower() == "devnet":
-            if helius_api_key:
-                rpc_url = f"https://devnet.helius-rpc.com/?api-key={helius_api_key}"
+            if HELIUS_API_KEY:
+                rpc_url = f"https://devnet.helius-rpc.com/?api-key={HELIUS_API_KEY}"
             else:
                 rpc_url = "https://api.devnet.solana.com"
         elif network.lower() == "testnet":
@@ -402,8 +407,8 @@ def get_wallet_balance(wallet_address, network="mainnet"):
             else:
                 rpc_url = "https://api.testnet.solana.com"
         else:  # default to mainnet
-            if helius_api_key:
-                rpc_url = f"https://mainnet.helius-rpc.com/?api-key={helius_api_key}"
+            if HELIUS_API_KEY:
+                rpc_url = f"https://mainnet.helius-rpc.com/?api-key={HELIUS_API_KEY}"
             else:
                 rpc_url = "https://api.mainnet-beta.solana.com"
 
@@ -501,11 +506,9 @@ def get_price():
     output_mint = data.get('outputMint', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v')  # USDC
     amount = data.get('amount', 1000000000)  # Default to 1 SOL (in lamports)
 
-    # Get Jupiter API key from environment
-    jupiter_api_key = os.getenv('JUPITER_API_KEY')
 
     headers = {
-        "x-api-key": jupiter_api_key
+        "x-api-key": JUPITER_API_KEY
     }
 
     params = {
@@ -1141,12 +1144,10 @@ def get_jupiter_price_direct(input_mint, output_mint, amount):
     # Disable SSL warnings if needed (for debugging purposes only)
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    # Get Jupiter API key from environment
-    jupiter_api_key = os.getenv('JUPITER_API_KEY')
 
     # Set appropriate headers for Jupiter API
     headers = {
-        "x-api-key": jupiter_api_key
+        "x-api-key": JUPITER_API_KEY
     }
 
     # First try the original pair with correct parameters
@@ -1244,14 +1245,12 @@ def execute_swap(user_id, input_mint, output_mint, amount, slippage_bps=50):
 
         user_public_key = str(keypair.pubkey())
 
-        # Get Jupiter API key
-        jupiter_api_key = os.getenv('JUPITER_API_KEY')
-        if not jupiter_api_key:
+        if not JUPITER_API_KEY:
             raise ValueError("JUPITER_API_KEY not found in environment variables")
 
         # Get quote first
         quote_headers = {
-            "x-api-key": jupiter_api_key
+            "x-api-key": JUPITER_API_KEY
         }
 
         quote_params = {
@@ -1274,7 +1273,7 @@ def execute_swap(user_id, input_mint, output_mint, amount, slippage_bps=50):
         # Prepare swap request
         swap_headers = {
             "Content-Type": "application/json",
-            "x-api-key": jupiter_api_key
+            "x-api-key": JUPITER_API_KEY
         }
 
         swap_body = {
@@ -1323,11 +1322,9 @@ def execute_swap(user_id, input_mint, output_mint, amount, slippage_bps=50):
         # Get the signed transaction bytes
         signed_transaction = bytes(signed_tx)
 
-        # Get Helius API key for RPC
-        helius_api_key = os.getenv('HELIUS_API_KEY')
-        if helius_api_key:
+        if HELIUS_API_KEY:
             # Use Helius RPC endpoint for faster and more reliable transactions
-            helius_rpc_url = f"https://mainnet.helius-rpc.com/?api-key={helius_api_key}"
+            helius_rpc_url = f"https://mainnet.helius-rpc.com/?api-key={HELIUS_API_KEY}"
             solana_client = Client(helius_rpc_url)
         else:
             # Fallback to standard Solana RPC
@@ -1704,10 +1701,8 @@ def execute_sol_transfer(user_id, destination_address, amount):
         except ImportError:
              return {"success": False, "message": "Could not import solders.keypair. Please ensure solders is installed."}
         
-        # Determine RPC URL
-        helius_api_key = os.getenv('HELIUS_API_KEY')
-        if helius_api_key:
-            rpc_url = f"https://mainnet.helius-rpc.com/?api-key={helius_api_key}"
+        if HELIUS_API_KEY:
+            rpc_url = f"https://mainnet.helius-rpc.com/?api-key={HELIUS_API_KEY}"
         else:
             rpc_url = "https://api.mainnet-beta.solana.com"
             
@@ -1784,10 +1779,8 @@ def execute_spl_transfer(user_id, destination_address, amount, token_mint, decim
         except ImportError:
              return {"success": False, "message": "Could not import solders.keypair. Please ensure solders is installed."}
         
-        # Determine RPC URL
-        helius_api_key = os.getenv('HELIUS_API_KEY')
-        if helius_api_key:
-            rpc_url = f"https://mainnet.helius-rpc.com/?api-key={helius_api_key}"
+        if HELIUS_API_KEY:
+            rpc_url = f"https://mainnet.helius-rpc.com/?api-key={HELIUS_API_KEY}"
         else:
             rpc_url = "https://api.mainnet-beta.solana.com"
             
